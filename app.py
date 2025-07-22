@@ -104,10 +104,10 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/tiktokKP9JpbkFuwyxKxZJogP1nYwEjKugr65t.txt')
+@app.route('/tiktokA4mLr5O0KsGFjXAezX2UN2qvTYKKvIVu.txt')
 def tiktok_verification():
     """Serve TikTok domain verification file"""
-    return send_from_directory('.', 'tiktokKP9JpbkFuwyxKxZJogP1nYwEjKugr65t.txt')
+    return send_from_directory('.', 'tiktokA4mLr5O0KsGFjXAezX2UN2qvTYKKvIVu.txt')
 
 
 @app.route('/documentation')
