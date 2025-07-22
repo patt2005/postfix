@@ -87,7 +87,7 @@ TIKTOK_BASE_URL = 'https://open.tiktokapis.com/v2'
 # Google Cloud Scheduler configuration
 GOOGLE_CLOUD_PROJECT = os.environ.get('GOOGLE_CLOUD_PROJECT')
 GOOGLE_CLOUD_LOCATION = os.environ.get('GOOGLE_CLOUD_LOCATION', 'us-central1')
-SCHEDULER_SERVICE_URL = os.environ.get('SCHEDULER_SERVICE_URL')  # Your app's URL for scheduled posts
+SCHEDULER_SERVICE_URL = os.environ.get('SCHEDULER_SERVICE_URL')
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi', 'flv', 'wmv'}
@@ -741,6 +741,15 @@ def register_user():
 def create_scheduler_job(scheduled_post_id, scheduled_time):
     """Create a Google Cloud Scheduler job for a scheduled post"""
     try:
+        # Check required environment variables
+        if not GOOGLE_CLOUD_PROJECT:
+            logger.error("GOOGLE_CLOUD_PROJECT environment variable not set")
+            return None
+        
+        if not SCHEDULER_SERVICE_URL:
+            logger.error("SCHEDULER_SERVICE_URL environment variable not set")
+            return None
+            
         client = scheduler.CloudSchedulerClient()
         parent = f"projects/{GOOGLE_CLOUD_PROJECT}/locations/{GOOGLE_CLOUD_LOCATION}"
         
@@ -767,11 +776,15 @@ def create_scheduler_job(scheduled_post_id, scheduled_time):
             'time_zone': 'UTC'
         }
         
+        logger.info(f"Creating scheduler job: {job_name} with schedule: {cron_expression}")
         response = client.create_job(parent=parent, job=job)
+        logger.info(f"Scheduler job created successfully: {response.name}")
         return response.name
         
     except Exception as e:
-        logger.error(f"Failed to create scheduler job: {e}")
+        logger.error(f"Failed to create scheduler job for post {scheduled_post_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 
@@ -858,16 +871,26 @@ def create_scheduled_post():
         db.session.add(scheduled_post)
         db.session.commit()
         
-        # Create Google Cloud Scheduler job
+        # Create Google Cloud Scheduler job (optional)
+        job_created = False
         if GOOGLE_CLOUD_PROJECT and SCHEDULER_SERVICE_URL:
-            job_name = create_scheduler_job(scheduled_post.id, scheduled_time)
-            if not job_name:
-                return jsonify({'error': 'Failed to create scheduler job'}), 500
+            try:
+                job_name = create_scheduler_job(scheduled_post.id, scheduled_time)
+                if job_name:
+                    job_created = True
+                    logger.info(f"Scheduler job created: {job_name}")
+                else:
+                    logger.warning(f"Failed to create scheduler job for post {scheduled_post.id}")
+            except Exception as e:
+                logger.warning(f"Scheduler not available: {e}")
+        else:
+            logger.info("Google Cloud Scheduler not configured - posts will be stored but not automatically executed")
         
         return jsonify({
             'success': True,
             'scheduled_post_id': scheduled_post.id,
-            'message': 'Scheduled post created successfully'
+            'scheduler_job_created': job_created,
+            'message': 'Scheduled post created successfully' + (' with automatic scheduling' if job_created else ' (manual execution required)')
         }), 201
         
     except ValueError as e:
