@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help Center - Postify</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fab fa-tiktok"></i>
+                <span>Postify</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/documentation" class="nav-link">Documentation</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/help-center" class="nav-link">Help Center</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/#contact" class="nav-link">Contact</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="help-center-container">
+        <div class="container">
+            <h1>Help Center</h1>
+            <p class="help-intro">Find answers to common questions about TikTok content automation concepts and best practices.</p>
+            
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search for help topics...">
+                    <div class="search-suggestions" id="searchSuggestions"></div>
+                </div>
+            </div>
+            
+            <div class="search-results" id="searchResults" style="display: none;">
+                <div class="results-header">
+                    <h3>Search Results</h3>
+                    <span class="results-count" id="resultsCount"></span>
+                </div>
+                <div class="results-content" id="resultsContent"></div>
+                <div class="no-results" id="noResults" style="display: none;">
+                    <i class="fas fa-search"></i>
+                    <h3>No results found</h3>
+                    <p>Try searching for:</p>
+                    <div class="suggested-searches">
+                        <span class="suggestion-tag" onclick="searchFor('automation')">automation</span>
+                        <span class="suggestion-tag" onclick="searchFor('TikTok')">TikTok</span>
+                        <span class="suggestion-tag" onclick="searchFor('posting')">posting</span>
+                        <span class="suggestion-tag" onclick="searchFor('compliance')">compliance</span>
+                        <span class="suggestion-tag" onclick="searchFor('best practices')">best practices</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="help-categories" id="helpCategories">
+                <div class="category-card" onclick="showCategory('getting-started')">
+                    <i class="fas fa-rocket"></i>
+                    <h3>Getting Started</h3>
+                    <p>Learn the basics of content automation concepts</p>
+                </div>
+                <div class="category-card" onclick="showCategory('best-practices')">
+                    <i class="fas fa-star"></i>
+                    <h3>Best Practices</h3>
+                    <p>Guidelines for effective content management</p>
+                </div>
+                <div class="category-card" onclick="showCategory('technical')">
+                    <i class="fas fa-cogs"></i>
+                    <h3>Technical Info</h3>
+                    <p>Technical concepts and implementation details</p>
+                </div>
+                <div class="category-card" onclick="showCategory('compliance')">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Compliance</h3>
+                    <p>TikTok guidelines and compliance information</p>
+                </div>
+            </div>
+
+            <div class="faq-section">
+                <h2>Frequently Asked Questions</h2>
+                
+                <div class="faq-category" id="getting-started">
+                    <h3>Getting Started</h3>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>What is Postify?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Postify is an educational platform that provides information about content automation concepts, best practices, and methodologies for TikTok creators. We offer learning resources and documentation rather than actual automation services.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>How do I get started with content automation?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Start by reading our documentation to understand automation concepts, then review TikTok's terms of service, and finally implement best practices gradually while ensuring compliance with platform guidelines.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>Do you provide actual automation tools?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>No, we are an educational resource only. We provide information and guidance about automation concepts but do not offer software, tools, or services.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-category" id="best-practices">
+                    <h3>Best Practices</h3>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>What are the key principles of content automation?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Key principles include maintaining authenticity, ensuring content quality, posting consistently without overwhelming your audience, engaging genuinely with your community, and always following platform guidelines.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>How often should I post content?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Posting frequency depends on your audience and content quality. Generally, 1-3 posts per day is recommended, but focus on quality over quantity. Consistency is more important than high frequency.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>What are the best times to post on TikTok?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Optimal posting times vary by audience and location. Generally, 6-10 AM and 7-9 PM are effective. Use TikTok analytics to understand when your specific audience is most active.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-category" id="technical">
+                    <h3>Technical Information</h3>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>How does TikTok's API work?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>TikTok's API allows developers to interact with the platform programmatically. However, it has strict guidelines, rate limits, and approval processes. Any automation must comply with their terms of service.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>What are rate limits?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Rate limits restrict how many API calls can be made within a specific time period. They prevent spam and ensure fair usage of platform resources. Exceeding rate limits can result in temporary or permanent access restrictions.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>What security measures should I consider?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Important security measures include using secure authentication methods, encrypting sensitive data, implementing proper access controls, regular security audits, and following data privacy regulations.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-category" id="compliance">
+                    <h3>Compliance</h3>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>How do I ensure TikTok compliance?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Stay updated with TikTok's terms of service, community guidelines, and API policies. Ensure your content and any automation practices comply with these rules. Regular review of platform updates is essential.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>What happens if I violate TikTok's terms?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Violations can result in content removal, account restrictions, shadow banning, or permanent account suspension. It's crucial to understand and follow all platform guidelines.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleAnswer(this)">
+                            <h4>Can I use third-party automation tools?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Only use tools that comply with TikTok's terms of service and API guidelines. Unauthorized automation tools can violate platform rules and result in account penalties.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="help-contact">
+                <h2>Still Need Help?</h2>
+                <p>If you couldn't find the answer to your question, feel free to contact us.</p>
+                <div class="contact-options">
+                    <a href="/#contact" class="btn btn-primary">Contact Us</a>
+                    <a href="/documentation" class="btn btn-secondary">View Documentation</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Postify</h4>
+                    <p>Educational resources and information about TikTok content automation solutions.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="/#features">Features</a></li>
+                        <li><a href="/#how-it-works">How it Works</a></li>
+                        <li><a href="/documentation">Documentation</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="/help-center">Help Center</a></li>
+                        <li><a href="/#contact">Contact</a></li>
+                        <li><a href="/terms-of-service">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="/privacy-policy">Privacy Policy</a></li>
+                        <li><a href="/terms-of-service">Terms of Service</a></li>
+                        <li><a href="/documentation">Documentation</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Postify. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Common search suggestions
+        const searchSuggestions = [
+            'What is Postify?',
+            'How to get started?',
+            'Best posting times',
+            'TikTok compliance',
+            'Rate limits',
+            'Security measures',
+            'Content automation',
+            'API guidelines',
+            'Hashtag strategy',
+            'Posting frequency'
+        ];
+        
+        function showCategory(categoryId) {
+            // Hide search results
+            hideSearchResults();
+            
+            // Hide all categories
+            const categories = document.querySelectorAll('.faq-category');
+            categories.forEach(cat => cat.style.display = 'none');
+            
+            // Show selected category
+            const selectedCategory = document.getElementById(categoryId);
+            if (selectedCategory) {
+                selectedCategory.style.display = 'block';
+                selectedCategory.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        function toggleAnswer(element) {
+            const answer = element.nextElementSibling;
+            const icon = element.querySelector('i');
+            
+            if (answer.style.display === 'block') {
+                answer.style.display = 'none';
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                answer.style.display = 'block';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+        }
+        
+        function searchFor(term) {
+            document.getElementById('searchInput').value = term;
+            performSearch(term);
+        }
+        
+        function hideSearchResults() {
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('helpCategories').style.display = 'grid';
+            document.querySelector('.faq-section').style.display = 'block';
+        }
+        
+        function showSearchResults() {
+            document.getElementById('searchResults').style.display = 'block';
+            document.getElementById('helpCategories').style.display = 'none';
+            document.querySelector('.faq-section').style.display = 'none';
+        }
+        
+        function performSearch(searchTerm) {
+            const faqItems = document.querySelectorAll('.faq-item');
+            const resultsContent = document.getElementById('resultsContent');
+            const noResults = document.getElementById('noResults');
+            const resultsCount = document.getElementById('resultsCount');
+            
+            let matchedItems = [];
+            let resultsHTML = '';
+            
+            faqItems.forEach(item => {
+                const question = item.querySelector('.faq-question h4').textContent.toLowerCase();
+                const answer = item.querySelector('.faq-answer p').textContent.toLowerCase();
+                
+                if (question.includes(searchTerm.toLowerCase()) || answer.includes(searchTerm.toLowerCase())) {
+                    matchedItems.push(item);
+                    
+                    const questionText = item.querySelector('.faq-question h4').textContent;
+                    const answerText = item.querySelector('.faq-answer p').textContent;
+                    const category = item.closest('.faq-category').querySelector('h3').textContent;
+                    
+                    resultsHTML += `
+                        <div class="search-result-item">
+                            <div class="result-category">${category}</div>
+                            <h4>${questionText}</h4>
+                            <p>${answerText.substring(0, 150)}...</p>
+                        </div>
+                    `;
+                }
+            });
+            
+            if (matchedItems.length > 0) {
+                resultsContent.innerHTML = resultsHTML;
+                resultsCount.textContent = `${matchedItems.length} result${matchedItems.length > 1 ? 's' : ''} found`;
+                noResults.style.display = 'none';
+                resultsContent.style.display = 'block';
+            } else {
+                noResults.style.display = 'block';
+                resultsContent.style.display = 'none';
+                resultsCount.textContent = 'No results found';
+            }
+        }
+        
+        // Search functionality with suggestions
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const suggestionsContainer = document.getElementById('searchSuggestions');
+            
+            if (searchTerm === '') {
+                hideSearchResults();
+                suggestionsContainer.style.display = 'none';
+                return;
+            }
+            
+            // Show search results
+            showSearchResults();
+            performSearch(searchTerm);
+            
+            // Show suggestions
+            const filteredSuggestions = searchSuggestions.filter(suggestion => 
+                suggestion.toLowerCase().includes(searchTerm)
+            );
+            
+            if (filteredSuggestions.length > 0) {
+                let suggestionsHTML = '';
+                filteredSuggestions.slice(0, 5).forEach(suggestion => {
+                    suggestionsHTML += `<div class="suggestion-item" onclick="searchFor('${suggestion}')">${suggestion}</div>`;
+                });
+                suggestionsContainer.innerHTML = suggestionsHTML;
+                suggestionsContainer.style.display = 'block';
+            } else {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-box')) {
+                document.getElementById('searchSuggestions').style.display = 'none';
+            }
+        });
+        
+        // Show suggestions on focus
+        document.getElementById('searchInput').addEventListener('focus', function(e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            if (searchTerm !== '') {
+                const suggestionsContainer = document.getElementById('searchSuggestions');
+                if (suggestionsContainer.innerHTML !== '') {
+                    suggestionsContainer.style.display = 'block';
+                }
+            }
+        });
+        
+        // Show all categories by default
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.faq-category').forEach(cat => {
+                cat.style.display = 'block';
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postify - Social Media Content Automation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-share-alt"></i>
+                <span>Postify</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#features" class="nav-link">Features</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#how-it-works" class="nav-link">How it Works</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#contact" class="nav-link">Contact</a>
+                </li>
+            </ul>
+            <div class="nav-toggle">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+        <div class="hero-content">
+            <h1>Social Media Content Automation Tool</h1>
+            <p>Learn about automated content scheduling and management solutions for social media creators and businesses.</p>
+            <div class="hero-buttons">
+                <a href="/auth/tiktok" class="btn btn-primary">
+                    <i class="fas fa-link"></i> Connect Account
+                </a>
+                <button class="btn btn-secondary" onclick="showGuideModal()">View Guide</button>
+            </div>
+        </div>
+        <div class="hero-image">
+            <div class="hero-visual">
+                <div class="floating-elements">
+                    <div class="element element-1">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <div class="element element-2">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="element element-3">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="element element-4">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="element element-5">
+                        <i class="fas fa-hashtag"></i>
+                    </div>
+                    <div class="element element-6">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+                <div class="central-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Powerful Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="fas fa-clock"></i>
+                    <h3>Scheduling Concepts</h3>
+                    <p>Learn about optimal posting times and how scheduling can help maintain consistent content flow.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>Analytics Understanding</h3>
+                    <p>Understand key metrics and insights that help creators optimize their content strategy.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-users"></i>
+                    <h3>Team Workflows</h3>
+                    <p>Learn about collaborative approaches to content creation and management workflows.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-hashtag"></i>
+                    <h3>Hashtag Strategy</h3>
+                    <p>Discover best practices for using trending hashtags to maximize content reach and visibility.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-upload"></i>
+                    <h3>Content Management</h3>
+                    <p>Learn about efficient content organization and planning for consistent posting schedules.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Security & Compliance</h3>
+                    <p>Understand the importance of data security and compliance with platform guidelines.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Understand the Basics</h3>
+                        <p>Learn about social media APIs and how automation tools work within platform guidelines.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Plan Your Content</h3>
+                        <p>Develop a content strategy including captions, hashtags, and optimal posting schedules.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Implement & Monitor</h3>
+                        <p>Apply automation concepts while maintaining authentic engagement and monitoring performance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Interested in Content Automation?</h2>
+                <p>Discover how automation tools can help content creators streamline their social media posting workflow.</p>
+                <div class="cta-buttons">
+                    <button class="btn btn-primary btn-large" onclick="showInfoModal()">Product Information</button>
+                    <button class="btn btn-secondary btn-large" onclick="showGuideModal()">Setup Guide</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>Get In Touch</h2>
+            <div class="contact-content">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <span>georgestraw022@gmail.com</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-globe"></i>
+                        <span>Educational Resource Platform</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-info-circle"></i>
+                        <span>For informational purposes only</span>
+                    </div>
+                </div>
+                <form class="contact-form">
+                    <input type="text" placeholder="Your Name" required>
+                    <input type="email" placeholder="Your Email" required>
+                    <textarea placeholder="Your Question or Feedback" rows="5" required></textarea>
+                    <button type="submit" class="btn btn-primary">Send Inquiry</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Postify</h4>
+                    <p>Educational resources and information about social media content automation solutions.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#how-it-works">How it Works</a></li>
+                        <li><a href="#" onclick="showInfoModal()">Documentation</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="/help-center">Help Center</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                        <li><a href="/terms-of-service">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="/privacy-policy">Privacy Policy</a></li>
+                        <li><a href="/terms-of-service">Terms of Service</a></li>
+                        <li><a href="/documentation">Documentation</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Postify. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal Container -->
+    <div id="modalContainer" class="modal-container" onclick="closeModal(event)"></div>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
