@@ -309,7 +309,24 @@
     </nav>
 
     <div class="dashboard-container">
-        <div class="user-info" id="userInfo">
+        <!-- Account Management Section -->
+        <div class="account-management" style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #333;"><i class="fas fa-users"></i> Connected TikTok Accounts</h2>
+                <button class="btn btn-primary" onclick="addNewAccount()">
+                    <i class="fas fa-plus"></i> Connect Another Account
+                </button>
+            </div>
+            
+            <div id="accountsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                <div class="loading" style="grid-column: 1 / -1;">
+                    <div class="spinner"></div>
+                    <p>Loading accounts...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-info" id="userInfo" style="display: none;">
             <div class="loading">
                 <div class="spinner"></div>
                 <p>Loading user information...</p>
@@ -317,13 +334,16 @@
         </div>
 
         <div class="posting-section">
-            <h2><i class="fas fa-video"></i> Post Content</h2>
-            
-            <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #0c5460;">
-                <i class="fas fa-info-circle"></i> <strong>App Status: Unaudited</strong><br>
-                Your app is currently in testing mode. Videos will be posted as <strong>Private (visible only to you)</strong> until your app is audited and approved by the platform.
-                <a href="https://developers.tiktok.com/doc/content-sharing-guidelines/" target="_blank" style="color: #007bff;">Learn more about the audit process</a>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;"><i class="fas fa-video"></i> Post Content</h2>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <label style="font-weight: 600; margin: 0;">Post to:</label>
+                    <select id="targetAccountSelect" class="form-control" style="width: auto; min-width: 200px; padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd;">
+                        <option value="">Loading accounts...</option>
+                    </select>
+                </div>
             </div>
+            
             
             <div class="upload-tabs">
                 <button class="upload-tab" onclick="switchTab('url')">
@@ -357,11 +377,10 @@
                     <div class="form-group">
                         <label for="privacyUrl">Privacy Level</label>
                         <select id="privacyUrl" name="privacy">
-                            <option value="PUBLIC_TO_EVERYONE" disabled>Public (Requires app audit)</option>
-                            <option value="MUTUAL_FOLLOW_FRIENDS" disabled>Friends (Requires app audit)</option>
-                            <option value="SELF_ONLY" selected>Private (Only visible to you)</option>
+                            <option value="PUBLIC_TO_EVERYONE" selected>Public</option>
+                            <option value="MUTUAL_FOLLOW_FRIENDS">Friends</option>
+                            <option value="SELF_ONLY">Private (Only visible to you)</option>
                         </select>
-                        <small style="color: #666;">Unaudited apps can only post private videos</small>
                     </div>
                     
                     <div class="checkbox-group">
@@ -409,11 +428,10 @@
                     <div class="form-group">
                         <label for="privacyFile">Privacy Level</label>
                         <select id="privacyFile" name="privacy">
-                            <option value="PUBLIC_TO_EVERYONE" disabled>Public (Requires app audit)</option>
-                            <option value="MUTUAL_FOLLOW_FRIENDS" disabled>Friends (Requires app audit)</option>
-                            <option value="SELF_ONLY" selected>Private (Only visible to you)</option>
+                            <option value="PUBLIC_TO_EVERYONE" selected>Public</option>
+                            <option value="MUTUAL_FOLLOW_FRIENDS">Friends</option>
+                            <option value="SELF_ONLY">Private (Only visible to you)</option>
                         </select>
-                        <small style="color: #666;">Unaudited apps can only post private videos</small>
                     </div>
                     
                     <div class="checkbox-group">
@@ -536,11 +554,10 @@
                     <div class="form-group">
                         <label for="schedulePrivacy">Privacy Level</label>
                         <select id="schedulePrivacy" name="privacy">
-                            <option value="PUBLIC_TO_EVERYONE" disabled>Public (Requires app audit)</option>
-                            <option value="MUTUAL_FOLLOW_FRIENDS" disabled>Friends (Requires app audit)</option>
-                            <option value="SELF_ONLY" selected>Private (Only visible to you)</option>
+                            <option value="PUBLIC_TO_EVERYONE" selected>Public</option>
+                            <option value="MUTUAL_FOLLOW_FRIENDS">Friends</option>
+                            <option value="SELF_ONLY">Private (Only visible to you)</option>
                         </select>
-                        <small style="color: #666;">Unaudited apps can only post private videos</small>
                     </div>
                     
                     <div class="checkbox-group">
@@ -742,6 +759,19 @@
         // URL form submission
         document.getElementById('urlForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Get selected account
+            const targetAccountId = document.getElementById('targetAccountSelect').value;
+            if (!targetAccountId) {
+                showStatus('<i class="fas fa-exclamation-circle"></i> Please select a TikTok account to post to', 'error');
+                return;
+            }
+            
+            // Switch to target account if different
+            if (targetAccountId !== currentAccountId) {
+                await switchAccount(targetAccountId);
+            }
+            
             showStatus('<i class="fas fa-spinner fa-spin"></i> Posting video...', 'info');
             
             const formData = new FormData(e.target);
@@ -752,7 +782,8 @@
                 privacy_level: formData.get('privacy'),
                 disable_duet: formData.get('disable_duet') === 'true',
                 disable_comment: formData.get('disable_comment') === 'true',
-                disable_stitch: formData.get('disable_stitch') === 'true'
+                disable_stitch: formData.get('disable_stitch') === 'true',
+                tiktok_account_id: targetAccountId
             };
             
             try {
@@ -793,6 +824,18 @@
                 return;
             }
             
+            // Get selected account
+            const targetAccountId = document.getElementById('targetAccountSelect').value;
+            if (!targetAccountId) {
+                showStatus('<i class="fas fa-exclamation-circle"></i> Please select a TikTok account to post to', 'error');
+                return;
+            }
+            
+            // Switch to target account if different
+            if (targetAccountId !== currentAccountId) {
+                await switchAccount(targetAccountId);
+            }
+            
             showStatus('<i class="fas fa-spinner fa-spin"></i> Uploading video...', 'info');
             
             // First, upload the file to our server
@@ -822,7 +865,8 @@
                     privacy_level: formData.get('privacy'),
                     disable_duet: formData.get('disable_duet') === 'true',
                     disable_comment: formData.get('disable_comment') === 'true',
-                    disable_stitch: formData.get('disable_stitch') === 'true'
+                    disable_stitch: formData.get('disable_stitch') === 'true',
+                    tiktok_account_id: targetAccountId
                 };
                 
                 const response = await fetch('/api/post/video', {
@@ -989,6 +1033,14 @@
         // Schedule form submission
         document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Get selected account
+            const targetAccountId = document.getElementById('targetAccountSelect').value;
+            if (!targetAccountId) {
+                showStatus('<i class="fas fa-exclamation-circle"></i> Please select a TikTok account to post to', 'error');
+                return;
+            }
+            
             showStatus('<i class="fas fa-spinner fa-spin"></i> Creating scheduled post...', 'info');
             
             const formData = new FormData(e.target);
@@ -1000,7 +1052,8 @@
                 privacy_level: formData.get('privacy'),
                 disable_duet: formData.get('disable_duet') === 'true',
                 disable_comment: formData.get('disable_comment') === 'true',
-                disable_stitch: formData.get('disable_stitch') === 'true'
+                disable_stitch: formData.get('disable_stitch') === 'true',
+                tiktok_account_id: targetAccountId
             };
 
             try {
@@ -1243,6 +1296,200 @@
 
         // Load scheduled posts on page load
         window.addEventListener('DOMContentLoaded', loadScheduledPosts);
+
+        // Multi-Account Management Functions
+        let currentAccounts = [];
+        let currentAccountId = null;
+
+        async function loadTikTokAccounts() {
+            try {
+                const response = await fetch('/api/accounts/list');
+                const data = await response.json();
+                
+                if (response.ok && data.accounts) {
+                    currentAccounts = data.accounts;
+                    currentAccountId = data.current_account_id;
+                    
+                    // Update accounts list display
+                    displayAccounts(data.accounts);
+                    
+                    // Update account selector dropdowns
+                    updateAccountSelectors(data.accounts);
+                    
+                    // Set current account in selectors
+                    if (currentAccountId) {
+                        document.querySelectorAll('.account-selector').forEach(selector => {
+                            selector.value = currentAccountId;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading TikTok accounts:', error);
+            }
+        }
+
+        function displayAccounts(accounts) {
+            const container = document.getElementById('accountsList');
+            
+            if (!accounts || accounts.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                        <i class="fas fa-user-plus" style="font-size: 48px; color: #ddd; margin-bottom: 20px;"></i>
+                        <p style="color: #666; margin-bottom: 20px;">No TikTok accounts connected yet</p>
+                        <button class="btn btn-primary" onclick="addNewAccount()">
+                            <i class="fas fa-plus"></i> Connect Your First Account
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            accounts.forEach(account => {
+                const isActive = account.id === currentAccountId;
+                html += `
+                    <div class="account-card" style="
+                        background: ${isActive ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' : '#f9f9f9'};
+                        border: 2px solid ${isActive ? 'var(--primary-color)' : '#e0e0e0'};
+                        border-radius: 12px;
+                        padding: 20px;
+                        position: relative;
+                        transition: all 0.3s ease;
+                        cursor: pointer;
+                    " onclick="switchAccount(${account.id})" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        ${isActive ? '<div style="position: absolute; top: 10px; right: 10px; background: var(--primary-color); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Active</div>' : ''}
+                        
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                            ${account.avatar_url ? 
+                                `<img src="${account.avatar_url}" alt="${account.username}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">` :
+                                `<div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">${account.username ? account.username[0].toUpperCase() : 'T'}</div>`
+                            }
+                            <div style="flex: 1;">
+                                <h3 style="margin: 0; font-size: 18px; color: #333;">@${account.username}</h3>
+                                <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${account.display_name || 'TikTok User'}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #333;">${formatNumber(account.follower_count)}</div>
+                                <div style="font-size: 12px; color: #666;">Followers</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #333;">${formatNumber(account.following_count)}</div>
+                                <div style="font-size: 12px; color: #666;">Following</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #333;">${formatNumber(account.likes_count)}</div>
+                                <div style="font-size: 12px; color: #666;">Likes</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            ${!isActive ? `
+                                <button class="btn btn-primary" style="flex: 1; padding: 8px;" onclick="event.stopPropagation(); switchAccount(${account.id})">
+                                    <i class="fas fa-check"></i> Use This Account
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-secondary" style="${isActive ? 'flex: 1;' : ''} padding: 8px;" onclick="event.stopPropagation(); removeAccount(${account.id})">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateAccountSelectors(accounts) {
+            const selector = document.getElementById('targetAccountSelect');
+            if (!selector) return;
+            
+            if (!accounts || accounts.length === 0) {
+                selector.innerHTML = '<option value="">No accounts available</option>';
+                return;
+            }
+            
+            let html = '';
+            accounts.forEach(account => {
+                const isActive = account.id === currentAccountId;
+                html += `<option value="${account.id}" ${isActive ? 'selected' : ''}>@${account.username} - ${account.display_name || 'TikTok User'}</option>`;
+            });
+            
+            selector.innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        async function addNewAccount() {
+            // Redirect to TikTok auth to add a new account
+            window.location.href = '/auth/tiktok/add';
+        }
+
+        async function switchAccount(accountId) {
+            try {
+                const response = await fetch(`/api/accounts/switch/${accountId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    currentAccountId = accountId;
+                    showStatus(`<i class="fas fa-check-circle"></i> Switched to @${result.account.username}`, 'success');
+                    
+                    // Reload accounts display
+                    loadTikTokAccounts();
+                } else {
+                    showStatus(`<i class="fas fa-exclamation-circle"></i> Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`<i class="fas fa-exclamation-circle"></i> Error switching account: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeAccount(accountId) {
+            const account = currentAccounts.find(a => a.id === accountId);
+            if (!account) return;
+            
+            if (!confirm(`Are you sure you want to remove @${account.username} from your connected accounts?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/accounts/${accountId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus(`<i class="fas fa-check-circle"></i> Account removed successfully`, 'success');
+                    
+                    // Reload accounts
+                    loadTikTokAccounts();
+                } else {
+                    showStatus(`<i class="fas fa-exclamation-circle"></i> Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`<i class="fas fa-exclamation-circle"></i> Error removing account: ${error.message}`, 'error');
+            }
+        }
+
+        // Update page load to include account loading
+        window.addEventListener('DOMContentLoaded', () => {
+            loadTikTokAccounts();
+            loadUserInfo();
+            loadScheduledPosts();
+        });
     </script>
 </body>
 </html>

@@ -8,6 +8,23 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(200), unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    tiktok_accounts = db.relationship('TikTokAccount', backref='owner', lazy=True, cascade='all, delete-orphan')
+    scheduled_posts = db.relationship('ScheduledPost', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<User {self.email}>'
+
+
+class TikTokAccount(db.Model):
+    __tablename__ = 'tiktok_accounts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     tiktok_user_id = db.Column(db.String(100), unique=True, nullable=False)
     username = db.Column(db.String(100), nullable=False)
     display_name = db.Column(db.String(200))
@@ -19,14 +36,16 @@ class User(db.Model):
     access_token = db.Column(db.Text)
     refresh_token = db.Column(db.Text)
     token_expires_at = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
-    scheduled_posts = db.relationship('ScheduledPost', backref='user', lazy=True, cascade='all, delete-orphan')
+    # Relationships
+    scheduled_posts = db.relationship('ScheduledPost', backref='tiktok_account', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<TikTokAccount {self.username}>'
 
 
 class ScheduledPost(db.Model):
@@ -34,11 +53,12 @@ class ScheduledPost(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    tiktok_account_id = db.Column(db.Integer, db.ForeignKey('tiktok_accounts.id'), nullable=False)
     title = db.Column(db.String(500))
     description = db.Column(db.Text)
     video_url = db.Column(db.String(500))
     video_path = db.Column(db.String(500))
-    privacy_level = db.Column(db.String(50), default='SELF_ONLY')
+    privacy_level = db.Column(db.String(50), default='PUBLIC_TO_EVERYONE')
     disable_duet = db.Column(db.Boolean, default=False)
     disable_comment = db.Column(db.Boolean, default=False)
     disable_stitch = db.Column(db.Boolean, default=False)

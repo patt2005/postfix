@@ -11,7 +11,7 @@ import hashlib
 import base64
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
-from models import db, User, ScheduledPost
+from models import db, User, TikTokAccount, ScheduledPost
 from google.cloud import scheduler
 import json
 
@@ -206,7 +206,7 @@ def delete_test_user():
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'tiktok_access_token' not in session:
+        if 'user_id' not in session:
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
@@ -222,6 +222,10 @@ def tiktok_auth():
             'has_redirect_uri': bool(TIKTOK_REDIRECT_URI),
             'redirect_uri': TIKTOK_REDIRECT_URI
         }), 500
+    
+    # Check if this is for adding an additional account
+    is_adding_account = 'user_id' in session
+    session['is_adding_account'] = is_adding_account
     
     csrf_state = secrets.token_urlsafe(32)
     session['csrf_state'] = csrf_state
@@ -245,6 +249,13 @@ def tiktok_auth():
     
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
     return redirect(auth_url)
+
+
+@app.route('/auth/tiktok/add')
+@login_required
+def add_tiktok_account():
+    """Route for adding an additional TikTok account"""
+    return redirect(url_for('tiktok_auth'))
 
 
 @app.route('/auth/tiktok/callback')
@@ -430,6 +441,96 @@ def logout():
     return redirect(url_for('index'))
 
 
+@app.route('/api/accounts/list')
+@login_required
+def list_tiktok_accounts():
+    """List all TikTok accounts for the current user"""
+    user_id = session.get('user_id')
+    if not user_id:
+        # Try to find user by old method for backward compatibility
+        access_token = session.get('tiktok_access_token')
+        if access_token:
+            account = TikTokAccount.query.filter_by(access_token=access_token).first()
+            if account:
+                user_id = account.user_id
+                session['user_id'] = user_id
+    
+    if not user_id:
+        return jsonify({'error': 'User not found'}), 404
+    
+    accounts = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).all()
+    current_account_id = session.get('current_tiktok_account_id')
+    
+    return jsonify({
+        'accounts': [{
+            'id': acc.id,
+            'username': acc.username,
+            'display_name': acc.display_name,
+            'avatar_url': acc.avatar_url,
+            'follower_count': acc.follower_count,
+            'following_count': acc.following_count,
+            'likes_count': acc.likes_count,
+            'video_count': acc.video_count,
+            'is_current': acc.id == current_account_id
+        } for acc in accounts],
+        'current_account_id': current_account_id
+    })
+
+
+@app.route('/api/accounts/switch/<int:account_id>', methods=['POST'])
+@login_required
+def switch_tiktok_account(account_id):
+    """Switch to a different TikTok account"""
+    user_id = session.get('user_id')
+    account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id, is_active=True).first()
+    
+    if not account:
+        return jsonify({'error': 'Account not found or not authorized'}), 404
+    
+    # Update session with new account
+    session['current_tiktok_account_id'] = account.id
+    session['tiktok_access_token'] = account.access_token
+    
+    return jsonify({
+        'success': True,
+        'account': {
+            'id': account.id,
+            'username': account.username,
+            'display_name': account.display_name,
+            'avatar_url': account.avatar_url
+        }
+    })
+
+
+@app.route('/api/accounts/<int:account_id>', methods=['DELETE'])
+@login_required
+def delete_tiktok_account(account_id):
+    """Remove a TikTok account (soft delete)"""
+    user_id = session.get('user_id')
+    account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
+    
+    if not account:
+        return jsonify({'error': 'Account not found'}), 404
+    
+    # Check if this is the last active account
+    active_accounts = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).count()
+    if active_accounts <= 1:
+        return jsonify({'error': 'Cannot delete the last account. You must have at least one connected account.'}), 400
+    
+    # Soft delete the account
+    account.is_active = False
+    db.session.commit()
+    
+    # If this was the current account, switch to another one
+    if session.get('current_tiktok_account_id') == account_id:
+        other_account = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).first()
+        if other_account:
+            session['current_tiktok_account_id'] = other_account.id
+            session['tiktok_access_token'] = other_account.access_token
+    
+    return jsonify({'success': True, 'message': 'Account removed successfully'})
+
+
 @app.route('/api/user/info')
 @login_required
 def get_user_info():
@@ -537,7 +638,7 @@ def post_video():
     # Prepare post info
     post_info = {
         'title': data.get('title', ''),
-        'privacy_level': data.get('privacy_level', 'SELF_ONLY'),  # Default to private for unaudited apps
+        'privacy_level': data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),  # Default to public
         'disable_duet': data.get('disable_duet', False),
         'disable_comment': data.get('disable_comment', False),
         'disable_stitch': data.get('disable_stitch', False),
@@ -843,10 +944,16 @@ def create_scheduled_post():
     data = request.get_json()
     
     # Validate required fields
-    required_fields = ['title', 'scheduled_time']
+    required_fields = ['title', 'scheduled_time', 'tiktok_account_id']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'Missing required field: {field}'}), 400
+    
+    # Verify the TikTok account belongs to the user
+    tiktok_account_id = data.get('tiktok_account_id')
+    tiktok_account = TikTokAccount.query.filter_by(id=tiktok_account_id, user_id=user_id, is_active=True).first()
+    if not tiktok_account:
+        return jsonify({'error': 'TikTok account not found or not authorized'}), 404
     
     try:
         # Parse scheduled time
@@ -855,11 +962,12 @@ def create_scheduled_post():
         # Create scheduled post record
         scheduled_post = ScheduledPost(
             user_id=user_id,
+            tiktok_account_id=tiktok_account_id,
             title=data['title'],
             description=data.get('description', ''),
             video_url=data.get('video_url'),
             video_path=data.get('video_path'),
-            privacy_level=data.get('privacy_level', 'SELF_ONLY'),
+            privacy_level=data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),
             disable_duet=data.get('disable_duet', False),
             disable_comment=data.get('disable_comment', False),
             disable_stitch=data.get('disable_stitch', False),
