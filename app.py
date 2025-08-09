@@ -255,7 +255,8 @@ def auth_tiktok():
         'redirect_uri': TIKTOK_REDIRECT_URI,
         'state': csrf_state,
         'code_challenge': code_challenge,
-        'code_challenge_method': 'S256'
+        'code_challenge_method': 'S256',
+        'prompt': 'login'  # Force TikTok to show login screen even if user is logged in
     }
     
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
