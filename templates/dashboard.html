@@ -296,13 +296,10 @@
                     <a href="#" class="nav-link">Dashboard</a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">Schedule</a>
+                    <a href="#scheduledPostsList" class="nav-link" onclick="document.getElementById('scheduledPostsList').scrollIntoView({behavior: 'smooth'}); return false;">Schedule</a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">Analytics</a>
-                </li>
-                <li class="nav-item">
-                    <a href="/logout" class="nav-link">Logout</a>
+                    <a href="/auth/logout" class="nav-link">Logout</a>
                 </li>
             </ul>
         </div>
@@ -313,7 +310,7 @@
         <div class="account-management" style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0; color: #333;"><i class="fas fa-users"></i> Connected TikTok Accounts</h2>
-                <button class="btn btn-primary" onclick="addNewAccount()">
+                <button class="btn btn-primary" onclick="window.location.href='/auth/tiktok'">
                     <i class="fas fa-plus"></i> Connect Another Account
                 </button>
             </div>
@@ -613,24 +610,6 @@
                     View Schedule
                 </button>
             </div>
-            
-            <div class="dashboard-card">
-                <i class="fas fa-chart-line"></i>
-                <h3>Analytics</h3>
-                <p>Track your post performance, engagement rates, and audience growth.</p>
-                <button class="btn btn-secondary" onclick="alert('Analytics coming soon!')">
-                    View Analytics
-                </button>
-            </div>
-            
-            <div class="dashboard-card">
-                <i class="fas fa-cog"></i>
-                <h3>Settings</h3>
-                <p>Configure your posting preferences, notifications, and account settings.</p>
-                <button class="btn btn-secondary" onclick="alert('Settings coming soon!')">
-                    Manage Settings
-                </button>
-            </div>
         </div>
     </div>
 
@@ -641,44 +620,71 @@
                 const data = await response.json();
                 
                 if (response.ok && data.data) {
-                    const userInfo = data.data.user;
-                    document.getElementById('userInfo').innerHTML = `
-                        <h2>Welcome back, ${userInfo.display_name || 'User'}!</h2>
-                        <p><i class="fas fa-user"></i> Username: @${userInfo.username || 'N/A'}</p>
-                        <p><i class="fas fa-video"></i> Videos: ${userInfo.video_count || 0}</p>
-                        <p><i class="fas fa-users"></i> Followers: ${userInfo.follower_count || 0}</p>
-                        <p><i class="fas fa-heart"></i> Likes: ${userInfo.likes_count || 0}</p>
-                        <div class="user-actions">
-                            <button class="btn btn-primary" onclick="window.location.href='#'">
-                                <i class="fas fa-plus"></i> Create Post
-                            </button>
-                            <button class="btn btn-secondary" onclick="window.location.href='/logout'">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </button>
-                        </div>
-                    `;
+                    if (data.data.user.tiktok_accounts && data.data.user.tiktok_accounts.length === 0) {
+                        // No TikTok accounts connected yet
+                        document.getElementById('userInfo').innerHTML = `
+                            <h2>Welcome to Postify!</h2>
+                            <p>You haven't connected any TikTok accounts yet.</p>
+                            <div class="user-actions">
+                                <button class="btn btn-primary" onclick="window.location.href='/auth/tiktok'">
+                                    <i class="fas fa-plus"></i> Connect TikTok Account
+                                </button>
+                                <button class="btn btn-secondary" onclick="window.location.href='/auth/logout'">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </div>
+                        `;
+                        document.getElementById('userInfo').style.display = 'block';
+                    } else {
+                        // Has TikTok accounts
+                        const userInfo = data.data.user;
+                        document.getElementById('userInfo').innerHTML = `
+                            <h2>Welcome back, ${userInfo.display_name || 'User'}!</h2>
+                            <p><i class="fas fa-user"></i> Username: @${userInfo.username || 'N/A'}</p>
+                            <p><i class="fas fa-video"></i> Videos: ${userInfo.video_count || 0}</p>
+                            <p><i class="fas fa-users"></i> Followers: ${userInfo.follower_count || 0}</p>
+                            <p><i class="fas fa-heart"></i> Likes: ${userInfo.likes_count || 0}</p>
+                            <div class="user-actions">
+                                <button class="btn btn-primary" onclick="window.location.href='#'">
+                                    <i class="fas fa-plus"></i> Create Post
+                                </button>
+                                <button class="btn btn-secondary" onclick="window.location.href='/auth/logout'">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </div>
+                        `;
+                        document.getElementById('userInfo').style.display = 'block';
+                    }
                 } else {
                     document.getElementById('userInfo').innerHTML = `
                         <h2>Welcome to Postify!</h2>
-                        <p>Connected successfully. User information will be available soon.</p>
+                        <p>Connect your TikTok account to get started.</p>
                         <div class="user-actions">
-                            <button class="btn btn-secondary" onclick="window.location.href='/logout'">
+                            <button class="btn btn-primary" onclick="window.location.href='/auth/tiktok'">
+                                <i class="fas fa-plus"></i> Connect TikTok Account
+                            </button>
+                            <button class="btn btn-secondary" onclick="window.location.href='/auth/logout'">
                                 <i class="fas fa-sign-out-alt"></i> Logout
                             </button>
                         </div>
                     `;
+                    document.getElementById('userInfo').style.display = 'block';
                 }
             } catch (error) {
                 console.error('Error loading user info:', error);
                 document.getElementById('userInfo').innerHTML = `
                     <h2>Welcome to Postify!</h2>
-                    <p>Connected successfully. Start scheduling your posts!</p>
+                    <p>Connect your TikTok account to start scheduling posts!</p>
                     <div class="user-actions">
-                        <button class="btn btn-secondary" onclick="window.location.href='/logout'">
+                        <button class="btn btn-primary" onclick="window.location.href='/auth/tiktok'">
+                            <i class="fas fa-plus"></i> Connect TikTok Account
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.location.href='/auth/logout'">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
                     </div>
                 `;
+                document.getElementById('userInfo').style.display = 'block';
             }
         }
 
@@ -1336,7 +1342,7 @@
                     <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
                         <i class="fas fa-user-plus" style="font-size: 48px; color: #ddd; margin-bottom: 20px;"></i>
                         <p style="color: #666; margin-bottom: 20px;">No TikTok accounts connected yet</p>
-                        <button class="btn btn-primary" onclick="addNewAccount()">
+                        <button class="btn btn-primary" onclick="window.location.href='/auth/tiktok'">
                             <i class="fas fa-plus"></i> Connect Your First Account
                         </button>
                     </div>
@@ -1431,7 +1437,7 @@
 
         async function addNewAccount() {
             // Redirect to TikTok auth to add a new account
-            window.location.href = '/auth/tiktok/add';
+            window.location.href = '/auth/tiktok';
         }
 
         async function switchAccount(accountId) {

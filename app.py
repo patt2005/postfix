@@ -1,7 +1,8 @@
 import os
 import secrets
 import requests
-from flask import Flask, render_template, redirect, request, session, jsonify, url_for, send_from_directory
+from flask import Flask, render_template, redirect, request, session, jsonify, url_for, send_from_directory, flash
+from flask_login import LoginManager, login_required, current_user
 from dotenv import load_dotenv
 from urllib.parse import urlencode
 from functools import wraps
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_urlsafe(32))
+app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('WTF_CSRF_SECRET_KEY', secrets.token_urlsafe(32))
 
 database_url = os.environ.get('DATABASE_URL')
 
@@ -45,6 +47,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Always initialize db with the app
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'info'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 def init_database():
     """Initialize database tables - safe for production"""
@@ -101,6 +114,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
+    if current_user.is_authenticated:
+        # Get user's TikTok accounts
+        tiktok_accounts = TikTokAccount.query.filter_by(user_id=current_user.id).all()
+        return render_template('dashboard.html', tiktok_accounts=tiktok_accounts)
     return render_template('index.html')
 
 
@@ -203,17 +220,12 @@ def delete_test_user():
         }), 500
 
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('index'))
-        return f(*args, **kwargs)
-    return decorated_function
+# Custom decorator removed - using Flask-Login's login_required instead
 
 
 @app.route('/auth/tiktok')
-def tiktok_auth():
+@login_required
+def auth_tiktok():
     # Check if environment variables are loaded
     if not TIKTOK_CLIENT_KEY or not TIKTOK_REDIRECT_URI:
         return jsonify({
@@ -223,9 +235,8 @@ def tiktok_auth():
             'redirect_uri': TIKTOK_REDIRECT_URI
         }), 500
     
-    # Check if this is for adding an additional account
-    is_adding_account = 'user_id' in session
-    session['is_adding_account'] = is_adding_account
+    # Store current user ID in session for callback
+    session['auth_user_id'] = current_user.id
     
     csrf_state = secrets.token_urlsafe(32)
     session['csrf_state'] = csrf_state
@@ -255,7 +266,7 @@ def tiktok_auth():
 @login_required
 def add_tiktok_account():
     """Route for adding an additional TikTok account"""
-    return redirect(url_for('tiktok_auth'))
+    return redirect(url_for('auth_tiktok'))
 
 
 @app.route('/auth/tiktok/callback')
@@ -321,28 +332,36 @@ def tiktok_callback():
                     # Calculate token expiration time
                     expires_at = datetime.utcnow() + timedelta(seconds=token_data.get('expires_in', 86400))
                     
-                    # Check if user exists
-                    existing_user = User.query.filter_by(tiktok_user_id=tiktok_user['open_id']).first()
+                    # Get user ID from session (set during auth)
+                    auth_user_id = session.get('auth_user_id')
+                    if not auth_user_id:
+                        logger.error("No user ID in session, cannot associate TikTok account")
+                        return jsonify({'error': 'Authentication required'}), 401
                     
-                    if existing_user:
-                        logger.info(f"Updating existing user ID: {existing_user.id}")
-                        # Update existing user
-                        existing_user.username = tiktok_user.get('username', '')
-                        existing_user.display_name = tiktok_user.get('display_name', '')
-                        existing_user.avatar_url = tiktok_user.get('avatar_url', '')
-                        existing_user.follower_count = tiktok_user.get('follower_count', 0)
-                        existing_user.following_count = tiktok_user.get('following_count', 0)
-                        existing_user.likes_count = tiktok_user.get('likes_count', 0)
-                        existing_user.video_count = tiktok_user.get('video_count', 0)
-                        existing_user.access_token = token_data['access_token']
-                        existing_user.refresh_token = token_data.get('refresh_token')
-                        existing_user.token_expires_at = expires_at
-                        existing_user.last_login = datetime.utcnow()
-                        user = existing_user
+                    # Check if TikTok account already exists
+                    existing_account = TikTokAccount.query.filter_by(tiktok_user_id=tiktok_user['open_id']).first()
+                    
+                    if existing_account:
+                        logger.info(f"Updating existing TikTok account ID: {existing_account.id}")
+                        # Update existing TikTok account
+                        existing_account.username = tiktok_user.get('username', '')
+                        existing_account.display_name = tiktok_user.get('display_name', '')
+                        existing_account.avatar_url = tiktok_user.get('avatar_url', '')
+                        existing_account.follower_count = tiktok_user.get('follower_count', 0)
+                        existing_account.following_count = tiktok_user.get('following_count', 0)
+                        existing_account.likes_count = tiktok_user.get('likes_count', 0)
+                        existing_account.video_count = tiktok_user.get('video_count', 0)
+                        existing_account.access_token = token_data['access_token']
+                        existing_account.refresh_token = token_data.get('refresh_token')
+                        existing_account.token_expires_at = expires_at
+                        existing_account.last_login = datetime.utcnow()
+                        existing_account.is_active = True
+                        tiktok_account = existing_account
                     else:
-                        logger.info("Creating new user")
-                        # Create new user
-                        user = User(
+                        logger.info("Creating new TikTok account")
+                        # Create new TikTok account
+                        tiktok_account = TikTokAccount(
+                            user_id=auth_user_id,
                             tiktok_user_id=tiktok_user['open_id'],
                             username=tiktok_user.get('username', ''),
                             display_name=tiktok_user.get('display_name', ''),
@@ -354,25 +373,26 @@ def tiktok_callback():
                             access_token=token_data['access_token'],
                             refresh_token=token_data.get('refresh_token'),
                             token_expires_at=expires_at,
-                            last_login=datetime.utcnow()
+                            last_login=datetime.utcnow(),
+                            is_active=True
                         )
-                        db.session.add(user)
-                        logger.info("Added new user to session")
+                        db.session.add(tiktok_account)
+                        logger.info("Added new TikTok account to session")
                     
                     try:
                         db.session.commit()
-                        logger.info(f"Successfully committed user to database. User ID: {user.id}")
+                        logger.info(f"Successfully committed TikTok account to database. Account ID: {tiktok_account.id}")
                         
-                        # Store user ID in session
-                        session['user_id'] = user.id
-                        logger.info(f"Stored user_id {user.id} in session")
+                        # Clear auth user ID from session
+                        session.pop('auth_user_id', None)
+                        logger.info(f"Successfully saved TikTok account for user {auth_user_id}")
                         
-                        # Verify user was saved
-                        verification_user = User.query.get(user.id)
-                        if verification_user:
-                            logger.info(f"Verified user exists in database: {verification_user.username}")
+                        # Verify account was saved
+                        verification_account = TikTokAccount.query.get(tiktok_account.id)
+                        if verification_account:
+                            logger.info(f"Verified TikTok account exists in database: {verification_account.username}")
                         else:
-                            logger.error("User not found in database after commit!")
+                            logger.error("TikTok account not found in database after commit!")
                             
                     except Exception as commit_error:
                         logger.error(f"Database commit failed: {commit_error}")
@@ -382,16 +402,22 @@ def tiktok_callback():
                 else:
                     logger.warning(f"Invalid TikTok user data response: {user_data}")
                     
-                    # If user.info.basic scope not authorized, create minimal user record
+                    # If user.info.basic scope not authorized, create minimal TikTok account record
                     if 'error' in user_data and user_data['error'].get('code') == 'scope_not_authorized':
-                        logger.info("Creating minimal user record without profile info due to scope not authorized")
+                        logger.info("Creating minimal TikTok account record without profile info due to scope not authorized")
+                        
+                        # Get user ID from session
+                        auth_user_id = session.get('auth_user_id')
+                        if not auth_user_id:
+                            logger.error("No user ID in session for minimal account")
+                            return jsonify({'error': 'Authentication required'}), 401
                         
                         # Generate a unique identifier from the access token
-                        import hashlib
                         token_hash = hashlib.md5(token_data['access_token'].encode()).hexdigest()[:12]
                         
-                        # Create minimal user record
-                        minimal_user = User(
+                        # Create minimal TikTok account record
+                        minimal_account = TikTokAccount(
+                            user_id=auth_user_id,
                             tiktok_user_id=f'limited_user_{token_hash}',
                             username='TikTok User',
                             display_name='TikTok User',
@@ -403,16 +429,17 @@ def tiktok_callback():
                             access_token=token_data['access_token'],
                             refresh_token=token_data.get('refresh_token'),
                             token_expires_at=datetime.utcnow() + timedelta(seconds=token_data.get('expires_in', 86400)),
-                            last_login=datetime.utcnow()
+                            last_login=datetime.utcnow(),
+                            is_active=True
                         )
                         
                         try:
-                            db.session.add(minimal_user)
+                            db.session.add(minimal_account)
                             db.session.commit()
-                            session['user_id'] = minimal_user.id
-                            logger.info(f"Created minimal user record with ID: {minimal_user.id}")
+                            session.pop('auth_user_id', None)
+                            logger.info(f"Created minimal TikTok account record with ID: {minimal_account.id}")
                         except Exception as commit_error:
-                            logger.error(f"Failed to create minimal user: {commit_error}")
+                            logger.error(f"Failed to create minimal TikTok account: {commit_error}")
                             db.session.rollback()
                     
             except Exception as e:
@@ -421,7 +448,8 @@ def tiktok_callback():
                 logger.error(traceback.format_exc())
                 # Continue anyway - user can still use the app
             
-            return redirect(url_for('dashboard'))
+            flash('TikTok account successfully connected!', 'success')
+            return redirect(url_for('index'))
         else:
             return jsonify({'error': 'Failed to obtain access token', 'details': token_data}), 400
             
@@ -435,6 +463,14 @@ def dashboard():
     return render_template('dashboard.html')
 
 
+@app.route('/schedule_post/<int:account_id>')
+@login_required
+def schedule_post(account_id):
+    """Show the schedule post form for a specific TikTok account"""
+    account = TikTokAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    return render_template('schedule_post.html', account=account)
+
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -445,18 +481,7 @@ def logout():
 @login_required
 def list_tiktok_accounts():
     """List all TikTok accounts for the current user"""
-    user_id = session.get('user_id')
-    if not user_id:
-        # Try to find user by old method for backward compatibility
-        access_token = session.get('tiktok_access_token')
-        if access_token:
-            account = TikTokAccount.query.filter_by(access_token=access_token).first()
-            if account:
-                user_id = account.user_id
-                session['user_id'] = user_id
-    
-    if not user_id:
-        return jsonify({'error': 'User not found'}), 404
+    user_id = current_user.id
     
     accounts = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).all()
     current_account_id = session.get('current_tiktok_account_id')
@@ -481,7 +506,7 @@ def list_tiktok_accounts():
 @login_required
 def switch_tiktok_account(account_id):
     """Switch to a different TikTok account"""
-    user_id = session.get('user_id')
+    user_id = current_user.id
     account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id, is_active=True).first()
     
     if not account:
@@ -506,7 +531,7 @@ def switch_tiktok_account(account_id):
 @login_required
 def delete_tiktok_account(account_id):
     """Remove a TikTok account (soft delete)"""
-    user_id = session.get('user_id')
+    user_id = current_user.id
     account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
     
     if not account:
@@ -534,13 +559,33 @@ def delete_tiktok_account(account_id):
 @app.route('/api/user/info')
 @login_required
 def get_user_info():
-    user_id = session.get('user_id')
-    access_token = session.get('tiktok_access_token')
+    """Get information about the current user and their TikTok accounts"""
+    user = current_user
     
-    # First try to get fresh data from TikTok API
-    if access_token:
+    # Get all TikTok accounts for this user
+    tiktok_accounts = TikTokAccount.query.filter_by(user_id=user.id, is_active=True).all()
+    
+    if not tiktok_accounts:
+        # Return basic user info if no TikTok accounts connected
+        return jsonify({
+            'data': {
+                'user': {
+                    'email': user.email,
+                    'is_verified': user.is_verified,
+                    'created_at': user.created_at.isoformat() if user.created_at else None,
+                    'tiktok_accounts': []
+                }
+            }
+        })
+    
+    # If user has TikTok accounts, return the first one's data (for backward compatibility)
+    # You might want to modify this to return all accounts
+    primary_account = tiktok_accounts[0]
+    
+    # Try to get fresh data from TikTok API if we have an access token
+    if primary_account.access_token:
         headers = {
-            'Authorization': f'Bearer {access_token}'
+            'Authorization': f'Bearer {primary_account.access_token}'
         }
         
         try:
@@ -556,17 +601,14 @@ def get_user_info():
                 tiktok_user = api_data['data']['user']
                 
                 # Update local database with fresh data
-                if user_id:
-                    user = User.query.get(user_id)
-                    if user:
-                        user.username = tiktok_user.get('username', user.username)
-                        user.display_name = tiktok_user.get('display_name', user.display_name)
-                        user.avatar_url = tiktok_user.get('avatar_url', user.avatar_url)
-                        user.follower_count = tiktok_user.get('follower_count', user.follower_count)
-                        user.following_count = tiktok_user.get('following_count', user.following_count)
-                        user.likes_count = tiktok_user.get('likes_count', user.likes_count)
-                        user.video_count = tiktok_user.get('video_count', user.video_count)
-                        db.session.commit()
+                primary_account.username = tiktok_user.get('username', primary_account.username)
+                primary_account.display_name = tiktok_user.get('display_name', primary_account.display_name)
+                primary_account.avatar_url = tiktok_user.get('avatar_url', primary_account.avatar_url)
+                primary_account.follower_count = tiktok_user.get('follower_count', primary_account.follower_count)
+                primary_account.following_count = tiktok_user.get('following_count', primary_account.following_count)
+                primary_account.likes_count = tiktok_user.get('likes_count', primary_account.likes_count)
+                primary_account.video_count = tiktok_user.get('video_count', primary_account.video_count)
+                db.session.commit()
                 
                 return jsonify(api_data)
                 
@@ -574,28 +616,21 @@ def get_user_info():
             logger.warning(f"TikTok API failed, falling back to database: {e}")
     
     # Fallback to local database data
-    if user_id:
-        user = User.query.get(user_id)
-        if user:
-            # Return data in TikTok API format
-            return jsonify({
-                'data': {
-                    'user': {
-                        'open_id': user.tiktok_user_id,
-                        'union_id': user.tiktok_user_id,
-                        'username': user.username or 'N/A',
-                        'display_name': user.display_name or 'User',
-                        'avatar_url': user.avatar_url or '',
-                        'follower_count': user.follower_count or 0,
-                        'following_count': user.following_count or 0,
-                        'likes_count': user.likes_count or 0,
-                        'video_count': user.video_count or 0
-                    }
-                }
-            })
-    
-    # Final fallback if no user data available
-    return jsonify({'error': 'User information not available'}), 404
+    return jsonify({
+        'data': {
+            'user': {
+                'open_id': primary_account.tiktok_user_id,
+                'union_id': primary_account.tiktok_user_id,
+                'username': primary_account.username or 'N/A',
+                'display_name': primary_account.display_name or 'User',
+                'avatar_url': primary_account.avatar_url or '',
+                'follower_count': primary_account.follower_count or 0,
+                'following_count': primary_account.following_count or 0,
+                'likes_count': primary_account.likes_count or 0,
+                'video_count': primary_account.video_count or 0
+            }
+        }
+    })
 
 
 def allowed_file(filename):
@@ -776,9 +811,8 @@ def init_db():
 @login_required
 def register_user():
     """Manual user registration endpoint (alternative to automatic registration during login)"""
-    user_id = session.get('user_id')
-    if user_id:
-        user = User.query.get(user_id)
+    if current_user.is_authenticated:
+        user = current_user
         if user:
             return jsonify({
                 'message': 'User already registered',
@@ -823,7 +857,7 @@ def register_user():
             user.last_login = datetime.utcnow()
             
             db.session.commit()
-            session['user_id'] = user.id
+            # User is now registered and logged in via Flask-Login
             
             return jsonify({
                 'message': 'User registered successfully',
@@ -904,50 +938,28 @@ def delete_scheduler_job(job_name):
 @login_required
 def create_scheduled_post():
     """Create a new scheduled post"""
-    user_id = session.get('user_id')
+    user_id = current_user.id
     
-    # If user_id not in session, try to get it from the database
-    if not user_id:
-        access_token = session.get('tiktok_access_token')
-        if access_token:
-            # Try to find user by access token
-            user = User.query.filter_by(access_token=access_token).first()
-            if user:
-                user_id = user.id
-                session['user_id'] = user_id  # Store in session for future requests
-            else:
-                # If no user found, try to fetch from TikTok API and create/update user
-                headers = {'Authorization': f'Bearer {access_token}'}
-                try:
-                    # TikTok API requires fields parameter
-                    user_info_params = {
-                        'fields': 'open_id,union_id,avatar_url,display_name,username,follower_count,following_count,likes_count,video_count'
-                    }
-                    response = requests.get('https://open.tiktokapis.com/v2/user/info/', headers=headers, params=user_info_params)
-                    user_data = response.json()
-                    
-                    if 'data' in user_data and 'user' in user_data['data']:
-                        tiktok_user = user_data['data']['user']
-                        user = User.query.filter_by(tiktok_user_id=tiktok_user['open_id']).first()
-                        
-                        if user:
-                            user_id = user.id
-                            session['user_id'] = user_id
-                        else:
-                            return jsonify({'error': 'User not registered. Please logout and login again.'}), 400
-                except Exception as e:
-                    logger.error(f"Failed to fetch user info: {e}")
-    
-    if not user_id:
-        return jsonify({'error': 'User not found. Please logout and login again.'}), 400
-    
-    data = request.get_json()
+    # Handle both JSON and form data
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
     
     # Validate required fields
     required_fields = ['title', 'scheduled_time', 'tiktok_account_id']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'Missing required field: {field}'}), 400
+    
+    # Verify the TikTok account belongs to the current user
+    tiktok_account = TikTokAccount.query.filter_by(
+        id=data['tiktok_account_id'],
+        user_id=user_id
+    ).first()
+    
+    if not tiktok_account:
+        return jsonify({'error': 'TikTok account not found or unauthorized'}), 404
     
     # Verify the TikTok account belongs to the user
     tiktok_account_id = data.get('tiktok_account_id')
@@ -1012,19 +1024,7 @@ def create_scheduled_post():
 @login_required
 def list_scheduled_posts():
     """Get all scheduled posts for the current user"""
-    user_id = session.get('user_id')
-    
-    # If user_id not in session, try to get it from the database
-    if not user_id:
-        access_token = session.get('tiktok_access_token')
-        if access_token:
-            user = User.query.filter_by(access_token=access_token).first()
-            if user:
-                user_id = user.id
-                session['user_id'] = user_id  # Store in session for future requests
-    
-    if not user_id:
-        return jsonify({'error': 'User not found in session'}), 400
+    user_id = current_user.id
     
     try:
         scheduled_posts = ScheduledPost.query.filter_by(user_id=user_id).order_by(ScheduledPost.scheduled_time.desc()).all()
@@ -1054,19 +1054,8 @@ def list_scheduled_posts():
 @login_required
 def delete_scheduled_post(post_id):
     """Delete a scheduled post and its scheduler job"""
-    user_id = session.get('user_id')
+    user_id = current_user.id
     
-    # If user_id not in session, try to get it from the database
-    if not user_id:
-        access_token = session.get('tiktok_access_token')
-        if access_token:
-            user = User.query.filter_by(access_token=access_token).first()
-            if user:
-                user_id = user.id
-                session['user_id'] = user_id  # Store in session for future requests
-    
-    if not user_id:
-        return jsonify({'error': 'User not found in session'}), 400
     
     try:
         scheduled_post = ScheduledPost.query.filter_by(id=post_id, user_id=user_id).first()
@@ -1215,6 +1204,10 @@ def execute_scheduled_post():
         
         return jsonify({'error': 'Failed to execute scheduled post', 'message': str(e)}), 500
 
+
+# Register blueprints
+from auth import auth_bp
+app.register_blueprint(auth_bp)
 
 if __name__ == '__main__':
     # Database is already initialized in init_app() above
