@@ -1086,7 +1086,7 @@ def post_video():
         # Prepare post info
         post_info = {
             'title': data.get('title', ''),
-            'privacy_level': data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),  # Default to public
+            'privacy_level': data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),
             'disable_duet': data.get('disable_duet', False),
             'disable_comment': data.get('disable_comment', False),
             'disable_stitch': data.get('disable_stitch', False),
@@ -1139,54 +1139,8 @@ def post_video():
         if response.status_code != 200:
             logger.error(f"TikTok API error: {response_data}")
             
-            # Check for unaudited client error
-            if ('error' in response_data and 
-                response_data['error'].get('code') == 'unaudited_client_can_only_post_to_private_accounts'):
-                logger.warning(f"Unaudited app error - retrying with SELF_ONLY privacy (was: {post_info['privacy_level']})")
-                
-                # Automatically retry with SELF_ONLY privacy
-                if post_info['privacy_level'] != 'SELF_ONLY':
-                    original_privacy = post_info['privacy_level']
-                    post_info['privacy_level'] = 'SELF_ONLY'
-                    request_body['post_info'] = post_info
-                    
-                    logger.info("Retrying with SELF_ONLY privacy due to unaudited app...")
-                    retry_response = requests.post(
-                        f'{TIKTOK_BASE_URL}/post/publish/video/init/',
-                        headers=headers,
-                        json=request_body
-                    )
-                    retry_data = retry_response.json()
-                    
-                    if retry_response.status_code == 200:
-                        # Success with private posting
-                        logger.info("Successfully posted as private due to unaudited app")
-                        return jsonify({
-                            'data': retry_data.get('data', {}),
-                            'warning': 'Posted as PRIVATE due to unaudited app',
-                            'original_privacy': original_privacy,
-                            'instructions': [
-                                'Video posted successfully as PRIVATE (only visible to you)',
-                                'To make it public: Open TikTok app → Your profile → This video → Privacy settings → Change to "Everyone"',
-                                'Note: Your account must be public to share public videos'
-                            ]
-                        })
-                    else:
-                        # Even private posting failed
-                        return jsonify({
-                            'error': 'Failed to post even with private settings',
-                            'response': retry_data
-                        }), retry_response.status_code
-                else:
-                    # Already was SELF_ONLY but still failed
-                    return jsonify({
-                        'error': 'Unaudited App Error',
-                        'message': 'Cannot post video. Please check your app status on developers.tiktok.com',
-                        'response': response_data
-                    }), 403
-                
             # If token is invalid, try to refresh it once
-            elif ('error' in response_data and 
+            if ('error' in response_data and 
                 response_data['error'].get('code') == 'access_token_invalid'):
                 logger.info("Access token invalid, attempting refresh...")
                 refreshed = refresh_tiktok_token(tiktok_account)
