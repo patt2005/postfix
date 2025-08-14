@@ -945,13 +945,14 @@ def post_video():
         return jsonify({'error': 'Failed to fetch video info', 'message': str(e)}), 500
 
     try:
-        logger.info(f"TikTok video init request: {request_body}")
+        print(f"TikTok video init request: {request_body}")
         response = requests.post(
             f'{TIKTOK_BASE_URL}/post/publish/video/init/',
             headers=headers,
             json=request_body
         )
-        
+
+        print(response.json())
         logger.info(f"TikTok video init response status: {response.status_code}")
         response_data = response.json()
         logger.info(f"TikTok video init response: {response_data}")
