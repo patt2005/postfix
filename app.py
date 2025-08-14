@@ -639,6 +639,50 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def refresh_tiktok_token(tiktok_account):
+    """Refresh TikTok access token using refresh token"""
+    if not tiktok_account.refresh_token:
+        logger.warning(f"No refresh token available for account {tiktok_account.username}")
+        return False
+    
+    try:
+        token_params = {
+            'client_key': TIKTOK_CLIENT_KEY,
+            'client_secret': TIKTOK_CLIENT_SECRET,
+            'grant_type': 'refresh_token',
+            'refresh_token': tiktok_account.refresh_token
+        }
+        
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Cache-Control': 'no-cache'
+        }
+        
+        logger.info(f"Attempting to refresh token for account {tiktok_account.username}")
+        response = requests.post(TIKTOK_TOKEN_URL, data=token_params, headers=headers)
+        token_data = response.json()
+        
+        logger.info(f"Token refresh response: {response.status_code}")
+        if response.status_code == 200 and 'access_token' in token_data:
+            # Update token in database
+            tiktok_account.access_token = token_data['access_token']
+            if 'refresh_token' in token_data:
+                tiktok_account.refresh_token = token_data['refresh_token']
+            if 'expires_in' in token_data:
+                tiktok_account.token_expires_at = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
+            
+            db.session.commit()
+            logger.info(f"Token refreshed successfully for account {tiktok_account.username}")
+            return True
+        else:
+            logger.error(f"Token refresh failed: {token_data}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error refreshing token: {str(e)}")
+        return False
+
+
 @app.route('/api/creator/info')
 @login_required
 def get_creator_info():
@@ -662,14 +706,45 @@ def get_creator_info():
 @app.route('/api/post/video', methods=['POST'])
 @login_required
 def post_video():
-    access_token = session.get('tiktok_access_token')
+    data = request.get_json()
+    
+    # Get the target account from the request
+    tiktok_account_id = data.get('tiktok_account_id')
+    if not tiktok_account_id:
+        return jsonify({'error': 'Missing tiktok_account_id in request'}), 400
+    
+    # Get the account and its access token
+    tiktok_account = TikTokAccount.query.filter_by(
+        id=tiktok_account_id, 
+        user_id=current_user.id,
+        is_active=True
+    ).first()
+    
+    if not tiktok_account:
+        return jsonify({'error': 'TikTok account not found or not authorized'}), 404
+    
+    access_token = tiktok_account.access_token
+    if not access_token:
+        return jsonify({'error': 'No access token found for this account'}), 401
+    
+    # Check if token is expired
+    if tiktok_account.token_expires_at and tiktok_account.token_expires_at < datetime.utcnow():
+        logger.warning(f"Access token expired for account {tiktok_account.username}")
+        # Try to refresh the token
+        refreshed = refresh_tiktok_token(tiktok_account)
+        if not refreshed:
+            return jsonify({
+                'error': 'Access token expired and refresh failed', 
+                'message': 'Please reconnect your TikTok account'
+            }), 401
+        access_token = tiktok_account.access_token
+    
+    logger.info(f"Using account: {tiktok_account.username} (ID: {tiktok_account.id})")
     
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Content-Type': 'application/json; charset=UTF-8'
     }
-    
-    data = request.get_json()
     
     # Prepare post info
     post_info = {
@@ -706,13 +781,73 @@ def post_video():
     }
     
     try:
+        logger.info(f"TikTok video init request: {request_body}")
         response = requests.post(
             f'{TIKTOK_BASE_URL}/post/publish/video/init/',
             headers=headers,
             json=request_body
         )
-        return jsonify(response.json())
+        
+        logger.info(f"TikTok video init response status: {response.status_code}")
+        response_data = response.json()
+        logger.info(f"TikTok video init response: {response_data}")
+        
+        # Check if the response contains an error
+        if response.status_code != 200:
+            logger.error(f"TikTok API error: {response_data}")
+            
+            # If token is invalid, try to refresh it once
+            if ('error' in response_data and 
+                response_data['error'].get('code') == 'access_token_invalid'):
+                logger.info("Access token invalid, attempting refresh...")
+                refreshed = refresh_tiktok_token(tiktok_account)
+                if refreshed:
+                    logger.info("Token refreshed, retrying request...")
+                    # Update headers with new token
+                    headers['Authorization'] = f'Bearer {tiktok_account.access_token}'
+                    # Retry the request
+                    response = requests.post(
+                        f'{TIKTOK_BASE_URL}/post/publish/video/init/',
+                        headers=headers,
+                        json=request_body
+                    )
+                    response_data = response.json()
+                    logger.info(f"Retry response: {response_data}")
+                    if response.status_code == 200:
+                        # Success after refresh, continue with normal flow
+                        pass
+                    else:
+                        return jsonify({
+                            'error': 'TikTok API error after token refresh',
+                            'status_code': response.status_code,
+                            'response': response_data
+                        }), response.status_code
+                else:
+                    return jsonify({
+                        'error': 'Access token invalid and refresh failed',
+                        'message': 'Please reconnect your TikTok account'
+                    }), 401
+            else:
+                return jsonify({
+                    'error': 'TikTok API error',
+                    'status_code': response.status_code,
+                    'response': response_data
+                }), response.status_code
+        
+        # For FILE_UPLOAD, ensure upload_url is present in the response
+        if source_type == 'FILE_UPLOAD':
+            if 'data' not in response_data or 'upload_url' not in response_data.get('data', {}):
+                logger.error(f"Missing upload_url in TikTok response: {response_data}")
+                return jsonify({
+                    'error': 'TikTok did not provide upload_url',
+                    'response': response_data
+                }), 400
+        
+        return jsonify(response_data)
     except Exception as e:
+        logger.error(f"Error initiating video post: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': 'Failed to initiate video post', 'message': str(e)}), 500
 
 
