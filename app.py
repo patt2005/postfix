@@ -643,6 +643,89 @@ def delete_tiktok_account(account_id):
     })
 
 
+@app.route('/api/accounts/reauth/<int:account_id>', methods=['POST'])
+@login_required
+def force_reauth_account(account_id):
+    """Force re-authentication for a TikTok account to get fresh tokens"""
+    user_id = current_user.id
+    account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
+    
+    if not account:
+        return jsonify({'error': 'Account not found'}), 404
+    
+    # Store account ID in session for re-authentication
+    session['reauth_account_id'] = account_id
+    session['auth_user_id'] = user_id
+    
+    return jsonify({
+        'success': True,
+        'message': 'Please re-authenticate to get fresh tokens',
+        'auth_url': '/auth/tiktok'
+    })
+
+
+@app.route('/api/accounts/refresh/<int:account_id>', methods=['POST'])
+@login_required
+def force_refresh_token(account_id):
+    """Force refresh the access token for a TikTok account"""
+    user_id = current_user.id
+    account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
+    
+    if not account:
+        return jsonify({'error': 'Account not found'}), 404
+    
+    if not account.refresh_token:
+        return jsonify({
+            'error': 'No refresh token available',
+            'message': 'Please re-authenticate your TikTok account'
+        }), 400
+    
+    logger.info(f"Force refreshing token for account {account.username}")
+    refreshed = refresh_tiktok_token(account)
+    
+    if refreshed:
+        return jsonify({
+            'success': True,
+            'message': 'Token refreshed successfully',
+            'token_expires_at': account.token_expires_at.isoformat() if account.token_expires_at else None,
+            'scope': account.scope
+        })
+    else:
+        return jsonify({
+            'error': 'Token refresh failed',
+            'message': 'Please re-authenticate your TikTok account'
+        }), 400
+
+
+@app.route('/api/accounts/debug/<int:account_id>')
+@login_required
+def debug_account_tokens(account_id):
+    """Debug endpoint to check token status"""
+    user_id = current_user.id
+    account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
+    
+    if not account:
+        return jsonify({'error': 'Account not found'}), 404
+    
+    # Check token age
+    token_age = None
+    if account.token_expires_at:
+        token_age = (account.token_expires_at - datetime.utcnow()).total_seconds()
+    
+    return jsonify({
+        'account_id': account.id,
+        'username': account.username,
+        'has_access_token': bool(account.access_token),
+        'has_refresh_token': bool(account.refresh_token),
+        'token_expires_at': account.token_expires_at.isoformat() if account.token_expires_at else None,
+        'token_age_seconds': token_age,
+        'token_expired': token_age < 0 if token_age else None,
+        'scope': account.scope,
+        'last_login': account.last_login.isoformat() if account.last_login else None,
+        'created_at': account.created_at.isoformat() if account.created_at else None
+    })
+
+
 @app.route('/api/user/info')
 @login_required
 def get_user_info():
@@ -902,6 +985,16 @@ def post_video():
             access_token = tiktok_account.access_token
 
         logger.info(f"Using account: {tiktok_account.username} (ID: {tiktok_account.id})")
+        logger.info(f"Token created at: {tiktok_account.created_at}")
+        logger.info(f"Token last refreshed: {tiktok_account.last_login}")
+        logger.info(f"Token scope: {tiktok_account.scope}")
+        
+        # Log token age
+        if tiktok_account.created_at:
+            token_age_days = (datetime.utcnow() - tiktok_account.created_at).days
+            logger.info(f"Account age: {token_age_days} days")
+            if token_age_days > 7:
+                logger.warning(f"Token is {token_age_days} days old - consider re-authenticating for fresh permissions")
 
         headers = {
             'Authorization': f'Bearer {access_token}',
