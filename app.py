@@ -282,6 +282,8 @@ def auth_tiktok():
         'code_challenge': code_challenge,
         'code_challenge_method': 'S256'
     }
+
+    print(f"-----{params}-----")
     
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
     return redirect(auth_url)
