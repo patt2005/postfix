@@ -1478,7 +1478,14 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    showStatus(`<i class="fas fa-check-circle"></i> Account removed successfully`, 'success');
+                    showStatus(`<i class="fas fa-check-circle"></i> ${result.message}`, 'success');
+                    
+                    // If no accounts remaining, also show a helpful message
+                    if (result.accounts_remaining === 0) {
+                        setTimeout(() => {
+                            showStatus(`<i class="fas fa-info-circle"></i> You can connect a new TikTok account anytime by clicking "Connect Another Account"`, 'info');
+                        }, 3000);
+                    }
                     
                     // Reload accounts
                     loadTikTokAccounts();

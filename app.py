@@ -538,23 +538,34 @@ def delete_tiktok_account(account_id):
     if not account:
         return jsonify({'error': 'Account not found'}), 404
     
-    # Check if this is the last active account
-    active_accounts = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).count()
-    if active_accounts <= 1:
-        return jsonify({'error': 'Cannot delete the last account. You must have at least one connected account.'}), 400
-    
     # Soft delete the account
     account.is_active = False
     db.session.commit()
     
-    # If this was the current account, switch to another one
+    # Check if this was the last active account
+    active_accounts = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).count()
+    
+    # If this was the current account, try to switch to another one
     if session.get('current_tiktok_account_id') == account_id:
-        other_account = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).first()
-        if other_account:
+        if active_accounts > 0:
+            # Switch to another active account
+            other_account = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).first()
             session['current_tiktok_account_id'] = other_account.id
             session['tiktok_access_token'] = other_account.access_token
+        else:
+            # No accounts left, clear session data
+            session.pop('current_tiktok_account_id', None)
+            session.pop('tiktok_access_token', None)
     
-    return jsonify({'success': True, 'message': 'Account removed successfully'})
+    message = 'Account removed successfully'
+    if active_accounts == 0:
+        message += '. You now have no connected TikTok accounts.'
+    
+    return jsonify({
+        'success': True, 
+        'message': message,
+        'accounts_remaining': active_accounts
+    })
 
 
 @app.route('/api/user/info')
