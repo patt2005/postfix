@@ -751,28 +751,55 @@ def upload_video():
 @login_required
 def upload_video_chunk():
     data = request.get_json()
+    logger.info(f"Chunk upload request data: {data}")
+    
+    if not data:
+        return jsonify({'error': 'No JSON data provided'}), 400
+    
     upload_url = data.get('upload_url')
     video_path = data.get('video_path')
     
+    logger.info(f"Upload URL: {upload_url}")
+    logger.info(f"Video Path: {video_path}")
+    
     if not upload_url or not video_path:
-        return jsonify({'error': 'Missing upload_url or video_path'}), 400
+        return jsonify({
+            'error': 'Missing upload_url or video_path',
+            'received_data': {
+                'upload_url': bool(upload_url),
+                'video_path': bool(video_path),
+                'data_keys': list(data.keys()) if data else []
+            }
+        }), 400
     
     try:
+        # Check if video file exists
+        if not os.path.exists(video_path):
+            return jsonify({'error': f'Video file not found: {video_path}'}), 404
+        
         with open(video_path, 'rb') as video_file:
             video_data = video_file.read()
+            
+        logger.info(f"Video file size: {len(video_data)} bytes")
             
         headers = {
             'Content-Type': 'video/mp4',
             'Content-Range': f'bytes 0-{len(video_data)-1}/{len(video_data)}'
         }
         
+        logger.info(f"Uploading to TikTok URL: {upload_url[:50]}...")
         response = requests.put(upload_url, data=video_data, headers=headers)
+        logger.info(f"TikTok upload response status: {response.status_code}")
         
         return jsonify({
             'success': response.status_code == 200,
-            'status_code': response.status_code
+            'status_code': response.status_code,
+            'response_text': response.text[:200] if response.text else None
         })
     except Exception as e:
+        logger.error(f"Error uploading video chunk: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': 'Failed to upload video chunk', 'message': str(e)}), 500
 
 
