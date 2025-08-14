@@ -45,9 +45,13 @@ class TikTokAccount(db.Model):
     following_count = db.Column(db.Integer, default=0)
     likes_count = db.Column(db.Integer, default=0)
     video_count = db.Column(db.Integer, default=0)
+    # Token fields as per TikTok API documentation
     access_token = db.Column(db.Text)
     refresh_token = db.Column(db.Text)
     token_expires_at = db.Column(db.DateTime)
+    refresh_token_expires_at = db.Column(db.DateTime)
+    scope = db.Column(db.String(500))  # Comma-separated list of scopes
+    token_type = db.Column(db.String(50), default='Bearer')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

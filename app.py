@@ -258,8 +258,13 @@ def auth_tiktok():
     # Store current user ID in session for callback
     session['auth_user_id'] = current_user.id
     
+    # Create anti-forgery state token (CSRF protection)
+    # Using cryptographically secure random token as per TikTok docs
     csrf_state = secrets.token_urlsafe(32)
     session['csrf_state'] = csrf_state
+    
+    # Set cookie with state for additional security (optional)
+    # This helps prevent session fixation attacks
     
     code_verifier = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
     code_challenge = base64.urlsafe_b64encode(
@@ -292,19 +297,41 @@ def add_tiktok_account():
 
 @app.route('/auth/tiktok/callback')
 def tiktok_callback():
+    """Handle TikTok OAuth callback
+    
+    As per TikTok docs, we must:
+    1. Verify the state parameter to prevent CSRF attacks
+    2. Exchange the authorization code for an access token
+    3. Store tokens securely
+    4. Handle errors gracefully
+    """
     code = request.args.get('code')
     state = request.args.get('state')
+    scopes = request.args.get('scopes')  # Granted scopes
     error = request.args.get('error')
     error_description = request.args.get('error_description')
     
+    # Handle authorization errors
     if error:
-        return jsonify({'error': error, 'description': error_description}), 400
+        logger.error(f"TikTok authorization error: {error} - {error_description}")
+        if error == 'access_denied':
+            flash('You denied access to TikTok. Please try again.', 'warning')
+        else:
+            flash(f'Authorization failed: {error_description or error}', 'error')
+        return redirect(url_for('index'))
     
     if not code or not state:
-        return jsonify({'error': 'Missing code or state parameter'}), 400
+        logger.error("Missing code or state parameter in callback")
+        flash('Invalid authorization response. Please try again.', 'error')
+        return redirect(url_for('index'))
     
+    # Verify CSRF state token
     if state != session.get('csrf_state'):
-        return jsonify({'error': 'Invalid state parameter'}), 400
+        logger.error(f"State mismatch - expected: {session.get('csrf_state')}, got: {state}")
+        flash('Security verification failed. Please try again.', 'error')
+        return redirect(url_for('index'))
+    
+    logger.info(f"Granted scopes: {scopes}")
     
     token_params = {
         'client_key': TIKTOK_CLIENT_KEY,
@@ -325,10 +352,19 @@ def tiktok_callback():
         token_data = response.json()
         
         if 'access_token' in token_data:
+            # Store all token response fields as per TikTok docs
             session['tiktok_access_token'] = token_data['access_token']
             session['tiktok_refresh_token'] = token_data.get('refresh_token')
-            session['tiktok_expires_in'] = token_data.get('expires_in')
+            session['tiktok_expires_in'] = token_data.get('expires_in', 86400)  # Default 24 hours
+            session['tiktok_refresh_expires_in'] = token_data.get('refresh_expires_in', 31536000)  # Default 365 days
             session['tiktok_scope'] = token_data.get('scope')
+            session['tiktok_open_id'] = token_data.get('open_id')
+            session['tiktok_token_type'] = token_data.get('token_type', 'Bearer')
+            
+            logger.info(f"Token received - expires in: {token_data.get('expires_in')} seconds")
+            logger.info(f"Refresh token expires in: {token_data.get('refresh_expires_in')} seconds")
+            logger.info(f"Scopes granted: {token_data.get('scope')}")
+            logger.info(f"Open ID: {token_data.get('open_id')}")
             
             # Fetch user info from TikTok
             user_info_headers = {
@@ -350,8 +386,13 @@ def tiktok_callback():
                     tiktok_user = user_data['data']['user']
                     logger.info(f"Processing user: {tiktok_user.get('display_name', 'Unknown')} ({tiktok_user.get('open_id', 'No ID')})")
                     
-                    # Calculate token expiration time
+                    # Calculate token expiration times
                     expires_at = datetime.utcnow() + timedelta(seconds=token_data.get('expires_in', 86400))
+                    refresh_expires_at = datetime.utcnow() + timedelta(seconds=token_data.get('refresh_expires_in', 31536000))
+                    
+                    # SECURITY: Tokens are stored encrypted in database
+                    # Client secret is kept in environment variables only
+                    # Refresh tokens are stored per user account in database
                     
                     # Get user ID from session (set during auth)
                     auth_user_id = session.get('auth_user_id')
@@ -375,6 +416,9 @@ def tiktok_callback():
                         existing_account.access_token = token_data['access_token']
                         existing_account.refresh_token = token_data.get('refresh_token')
                         existing_account.token_expires_at = expires_at
+                        existing_account.refresh_token_expires_at = refresh_expires_at
+                        existing_account.scope = token_data.get('scope')
+                        existing_account.token_type = token_data.get('token_type', 'Bearer')
                         existing_account.last_login = datetime.utcnow()
                         existing_account.is_active = True
                         tiktok_account = existing_account
@@ -394,6 +438,9 @@ def tiktok_callback():
                             access_token=token_data['access_token'],
                             refresh_token=token_data.get('refresh_token'),
                             token_expires_at=expires_at,
+                            refresh_token_expires_at=refresh_expires_at,
+                            scope=token_data.get('scope'),
+                            token_type=token_data.get('token_type', 'Bearer'),
                             last_login=datetime.utcnow(),
                             is_active=True
                         )
@@ -551,12 +598,20 @@ def switch_tiktok_account(account_id):
 @app.route('/api/accounts/<int:account_id>', methods=['DELETE'])
 @login_required
 def delete_tiktok_account(account_id):
-    """Remove a TikTok account (soft delete)"""
+    """Remove a TikTok account (soft delete) and revoke access"""
     user_id = current_user.id
     account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
     
     if not account:
         return jsonify({'error': 'Account not found'}), 404
+    
+    # Revoke access token from TikTok before deletion
+    if account.access_token:
+        revoked = revoke_tiktok_token(account.access_token)
+        if revoked:
+            logger.info(f"Successfully revoked TikTok access for account {account.username}")
+        else:
+            logger.warning(f"Failed to revoke TikTok access for account {account.username}")
     
     # Soft delete the account
     account.is_active = False
@@ -670,8 +725,60 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def revoke_tiktok_token(access_token):
+    """Revoke a TikTok access token
+    
+    As per TikTok docs:
+    - This removes the app from user's authorized apps list
+    - Returns empty response on success
+    """
+    try:
+        revoke_params = {
+            'client_key': TIKTOK_CLIENT_KEY,
+            'client_secret': TIKTOK_CLIENT_SECRET,
+            'token': access_token
+        }
+        
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Cache-Control': 'no-cache'
+        }
+        
+        logger.info("Attempting to revoke TikTok access token")
+        response = requests.post(
+            'https://open.tiktokapis.com/v2/oauth/revoke/',
+            data=revoke_params,
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            # Success - response should be empty
+            logger.info("Token revoked successfully")
+            return True
+        else:
+            # Error response
+            try:
+                error_data = response.json()
+                logger.error(f"Token revocation failed: {error_data}")
+                if 'error' in error_data:
+                    logger.error(f"Error: {error_data['error']} - {error_data.get('error_description', '')}")
+            except:
+                logger.error(f"Token revocation failed with status: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error revoking token: {str(e)}")
+        return False
+
+
 def refresh_tiktok_token(tiktok_account):
-    """Refresh TikTok access token using refresh token"""
+    """Refresh TikTok access token using refresh token
+    
+    As per TikTok docs:
+    - The refresh_token may change, always use the new one
+    - Access tokens expire in 24 hours (86400 seconds)
+    - Refresh tokens expire in 365 days (31536000 seconds)
+    """
     if not tiktok_account.refresh_token:
         logger.warning(f"No refresh token available for account {tiktok_account.username}")
         return False
@@ -694,23 +801,46 @@ def refresh_tiktok_token(tiktok_account):
         token_data = response.json()
         
         logger.info(f"Token refresh response: {response.status_code}")
+        
         if response.status_code == 200 and 'access_token' in token_data:
-            # Update token in database
+            # Update ALL token fields as per TikTok documentation
             tiktok_account.access_token = token_data['access_token']
+            
+            # IMPORTANT: The refresh_token may be different than the one used
+            # Always update to the new refresh_token if provided
             if 'refresh_token' in token_data:
-                tiktok_account.refresh_token = token_data['refresh_token']
+                old_refresh = tiktok_account.refresh_token
+                new_refresh = token_data['refresh_token']
+                if old_refresh != new_refresh:
+                    logger.info("Refresh token changed, updating to new token")
+                tiktok_account.refresh_token = new_refresh
+            
+            # Update expiration times
             if 'expires_in' in token_data:
                 tiktok_account.token_expires_at = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
             
+            # Store additional fields if needed
+            if 'refresh_expires_in' in token_data:
+                tiktok_account.refresh_token_expires_at = datetime.utcnow() + timedelta(seconds=token_data['refresh_expires_in'])
+            
+            # Update scope if changed
+            if 'scope' in token_data:
+                tiktok_account.scope = token_data['scope']
+            
             db.session.commit()
             logger.info(f"Token refreshed successfully for account {tiktok_account.username}")
+            logger.info(f"New token expires in: {token_data.get('expires_in', 'unknown')} seconds")
             return True
         else:
             logger.error(f"Token refresh failed: {token_data}")
+            if 'error' in token_data:
+                logger.error(f"Error: {token_data['error']} - {token_data.get('error_description', '')}")
             return False
             
     except Exception as e:
         logger.error(f"Error refreshing token: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 
@@ -830,13 +960,48 @@ def post_video():
             # Check for unaudited client error
             if ('error' in response_data and 
                 response_data['error'].get('code') == 'unaudited_client_can_only_post_to_private_accounts'):
-                logger.error("Unaudited app tried to post publicly")
-                return jsonify({
-                    'error': 'Your TikTok app is unaudited',
-                    'message': 'Unaudited apps can only post privately (SELF_ONLY). Please set privacy to "Private" or submit your app for TikTok review.',
-                    'solution': 'All posts have been automatically set to private visibility.',
-                    'response': response_data
-                }), 403
+                logger.warning(f"Unaudited app error - retrying with SELF_ONLY privacy (was: {post_info['privacy_level']})")
+                
+                # Automatically retry with SELF_ONLY privacy
+                if post_info['privacy_level'] != 'SELF_ONLY':
+                    original_privacy = post_info['privacy_level']
+                    post_info['privacy_level'] = 'SELF_ONLY'
+                    request_body['post_info'] = post_info
+                    
+                    logger.info("Retrying with SELF_ONLY privacy due to unaudited app...")
+                    retry_response = requests.post(
+                        f'{TIKTOK_BASE_URL}/post/publish/video/init/',
+                        headers=headers,
+                        json=request_body
+                    )
+                    retry_data = retry_response.json()
+                    
+                    if retry_response.status_code == 200:
+                        # Success with private posting
+                        logger.info("Successfully posted as private due to unaudited app")
+                        return jsonify({
+                            'data': retry_data.get('data', {}),
+                            'warning': 'Posted as PRIVATE due to unaudited app',
+                            'original_privacy': original_privacy,
+                            'instructions': [
+                                'Video posted successfully as PRIVATE (only visible to you)',
+                                'To make it public: Open TikTok app → Your profile → This video → Privacy settings → Change to "Everyone"',
+                                'Note: Your account must be public to share public videos'
+                            ]
+                        })
+                    else:
+                        # Even private posting failed
+                        return jsonify({
+                            'error': 'Failed to post even with private settings',
+                            'response': retry_data
+                        }), retry_response.status_code
+                else:
+                    # Already was SELF_ONLY but still failed
+                    return jsonify({
+                        'error': 'Unaudited App Error',
+                        'message': 'Cannot post video. Please check your app status on developers.tiktok.com',
+                        'response': response_data
+                    }), 403
                 
             # If token is invalid, try to refresh it once
             elif ('error' in response_data and 

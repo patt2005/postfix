@@ -804,7 +804,18 @@
                 const result = await response.json();
                 
                 if (response.ok && result.data) {
-                    showStatus('<i class="fas fa-check-circle"></i> Video posted successfully! Publish ID: ' + result.data.publish_id, 'success');
+                    // Check if there's a warning about unaudited app
+                    if (result.warning) {
+                        showStatus(
+                            '<i class="fas fa-exclamation-triangle"></i> ' + result.warning + 
+                            '<br><small style="display: block; margin-top: 10px;">' + 
+                            (result.instructions ? result.instructions.join('<br>') : '') + 
+                            '</small>', 
+                            'info'
+                        );
+                    } else {
+                        showStatus('<i class="fas fa-check-circle"></i> Video posted successfully! Publish ID: ' + result.data.publish_id, 'success');
+                    }
                     e.target.reset();
                     
                     // Check post status after a delay
@@ -886,6 +897,17 @@
                 const result = await response.json();
                 
                 if (response.ok && result.data) {
+                    // Check if there's a warning about unaudited app
+                    if (result.warning) {
+                        showStatus(
+                            '<i class="fas fa-exclamation-triangle"></i> ' + result.warning + 
+                            '<br><small style="display: block; margin-top: 10px;">' + 
+                            (result.instructions ? result.instructions.join('<br>') : '') + 
+                            '</small>', 
+                            'info'
+                        );
+                    }
+                    
                     showStatus('<i class="fas fa-spinner fa-spin"></i> Uploading to TikTok...', 'info');
                     
                     // Upload video chunk to TikTok
