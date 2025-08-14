@@ -21,27 +21,50 @@ load_dotenv()
 import logging
 import sys
 
-# Configure logging for Google Cloud Run
+# Configure structured logging for Google Cloud Run
+# Cloud Run automatically captures logs in JSON format from stdout
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(message)s',  # Simple format - Cloud Run adds its own metadata
     handlers=[
-        logging.StreamHandler(sys.stdout),  # Output to stdout for Cloud Run
-        logging.StreamHandler(sys.stderr)   # Also to stderr for errors
-    ]
+        logging.StreamHandler(sys.stdout)  # Output only to stdout for Cloud Run
+    ],
+    force=True  # Override any existing configuration
 )
+
+# Get logger
 logger = logging.getLogger(__name__)
 
-# Force flush for Cloud Run
-class CloudRunHandler(logging.Handler):
-    def emit(self, record):
-        msg = self.format(record)
-        print(msg, flush=True)  # Force flush for immediate output
+# For Google Cloud structured logging, we can use JSON format
+import json as json_lib
 
-# Add Cloud Run handler
-cloud_handler = CloudRunHandler()
-cloud_handler.setLevel(logging.INFO)
-logger.addHandler(cloud_handler)
+class StructuredLogHandler(logging.Handler):
+    """Handler that outputs structured logs for Google Cloud"""
+    def emit(self, record):
+        # Create structured log entry
+        log_entry = {
+            "severity": record.levelname,
+            "message": record.getMessage(),
+            "timestamp": record.created,
+            "logger": record.name,
+        }
+        
+        # Add any extra fields from the record
+        if hasattr(record, 'extra_fields'):
+            log_entry.update(record.extra_fields)
+        
+        # Output as JSON for Cloud Run to parse
+        print(json_lib.dumps(log_entry), flush=True)
+
+# Use structured logging if in production
+if os.environ.get('FLASK_ENV') == 'production' or os.environ.get('GAE_ENV', '').startswith('standard'):
+    # Clear existing handlers
+    logger.handlers = []
+    # Add structured log handler for production
+    structured_handler = StructuredLogHandler()
+    structured_handler.setLevel(logging.INFO)
+    logger.addHandler(structured_handler)
+    logger.propagate = False
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_urlsafe(32))
@@ -174,19 +197,17 @@ def test_logging():
     import time
     timestamp = time.time()
     
-    # Test different logging methods
-    print(f"PRINT TEST: Timestamp {timestamp}", flush=True)
-    logger.info(f"LOGGER.INFO TEST: Timestamp {timestamp}")
-    logger.warning(f"LOGGER.WARNING TEST: Timestamp {timestamp}")
-    logger.error(f"LOGGER.ERROR TEST: Timestamp {timestamp}")
+    # Test structured logging
+    logger.info(f"Test log message with timestamp: {timestamp}")
+    logger.warning(f"Test warning with timestamp: {timestamp}")
+    logger.error(f"Test error with timestamp: {timestamp}")
     
-    # Also write to stderr
-    sys.stderr.write(f"STDERR TEST: Timestamp {timestamp}\n")
-    sys.stderr.flush()
-    
-    # Force Python to flush all buffers
-    sys.stdout.flush()
-    sys.stderr.flush()
+    # Log with additional context (for structured logging)
+    logger.info(f"User action logged", extra={'extra_fields': {
+        'user_action': 'test_logging',
+        'timestamp': timestamp,
+        'endpoint': '/debug/test-logging'
+    }})
     
     return jsonify({
         'message': 'Logging test completed',
@@ -335,15 +356,13 @@ def auth_tiktok():
         'code_challenge_method': 'S256'
     }
 
-    # Use logger for Cloud Run visibility
-    logger.info("="*50)
-    logger.info(f"TikTok Auth Parameters: {params}")
-    logger.info(f"Client Key: {TIKTOK_CLIENT_KEY}")
-    logger.info(f"Redirect URI: {TIKTOK_REDIRECT_URI}")
-    logger.info("="*50)
-    
-    # Also use print with flush for immediate output
-    print(f"-----{params}-----", flush=True)
+    # Use structured logging for Cloud Run visibility
+    logger.info("TikTok authentication initiated", extra={'extra_fields': {
+        'client_key': TIKTOK_CLIENT_KEY[:10] + '...' if TIKTOK_CLIENT_KEY else None,
+        'redirect_uri': TIKTOK_REDIRECT_URI,
+        'scopes': 'user.info.basic,video.publish',
+        'state_token': csrf_state[:10] + '...'
+    }})
     
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
     logger.info(f"Redirecting to: {auth_url}")
@@ -1100,14 +1119,17 @@ def post_video():
         return jsonify({'error': 'Failed to fetch video info', 'message': str(e)}), 500
 
     try:
-        print(f"TikTok video init request: {request_body}")
+        logger.info(f"TikTok video init request", extra={'extra_fields': {
+            'privacy_level': post_info.get('privacy_level'),
+            'source_type': source_type,
+            'account_id': tiktok_account_id
+        }})
         response = requests.post(
             f'{TIKTOK_BASE_URL}/post/publish/video/init/',
             headers=headers,
             json=request_body
         )
 
-        print(response.json())
         logger.info(f"TikTok video init response status: {response.status_code}")
         response_data = response.json()
         logger.info(f"TikTok video init response: {response_data}")
