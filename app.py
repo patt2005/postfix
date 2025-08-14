@@ -866,80 +866,83 @@ def get_creator_info():
 
 @app.route('/api/post/video', methods=['POST'])
 def post_video():
-    data = request.get_json()
-    
-    # Get the target account from the request
-    tiktok_account_id = data.get('tiktok_account_id')
-    if not tiktok_account_id:
-        return jsonify({'error': 'Missing tiktok_account_id in request'}), 400
-    
-    # Get the account and its access token
-    tiktok_account = TikTokAccount.query.filter_by(
-        id=tiktok_account_id, 
-        user_id=current_user.id,
-        is_active=True
-    ).first()
-    
-    if not tiktok_account:
-        return jsonify({'error': 'TikTok account not found or not authorized'}), 404
-    
-    access_token = tiktok_account.access_token
-    if not access_token:
-        return jsonify({'error': 'No access token found for this account'}), 401
-    
-    # Check if token is expired
-    if tiktok_account.token_expires_at and tiktok_account.token_expires_at < datetime.utcnow():
-        logger.warning(f"Access token expired for account {tiktok_account.username}")
-        # Try to refresh the token
-        refreshed = refresh_tiktok_token(tiktok_account)
-        if not refreshed:
-            return jsonify({
-                'error': 'Access token expired and refresh failed', 
-                'message': 'Please reconnect your TikTok account'
-            }), 401
+    try:
+        data = request.get_json()
+
+        # Get the target account from the request
+        tiktok_account_id = data.get('tiktok_account_id')
+        if not tiktok_account_id:
+            return jsonify({'error': 'Missing tiktok_account_id in request'}), 400
+
+        # Get the account and its access token
+        tiktok_account = TikTokAccount.query.filter_by(
+            id=tiktok_account_id,
+            user_id=current_user.id,
+            is_active=True
+        ).first()
+
+        if not tiktok_account:
+            return jsonify({'error': 'TikTok account not found or not authorized'}), 404
+
         access_token = tiktok_account.access_token
-    
-    logger.info(f"Using account: {tiktok_account.username} (ID: {tiktok_account.id})")
-    
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json; charset=UTF-8'
-    }
-    
-    # Prepare post info
-    post_info = {
-        'title': data.get('title', ''),
-        'privacy_level': data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),  # Default to public
-        'disable_duet': data.get('disable_duet', False),
-        'disable_comment': data.get('disable_comment', False),
-        'disable_stitch': data.get('disable_stitch', False),
-        'video_cover_timestamp_ms': data.get('video_cover_timestamp_ms', 1000)
-    }
-    
-    # Prepare source info based on upload type
-    source_type = data.get('source_type', 'PULL_FROM_URL')
-    
-    if source_type == 'PULL_FROM_URL':
-        source_info = {
-            'source': 'PULL_FROM_URL',
-            'video_url': data.get('video_url')
+        if not access_token:
+            return jsonify({'error': 'No access token found for this account'}), 401
+
+        # Check if token is expired
+        if tiktok_account.token_expires_at and tiktok_account.token_expires_at < datetime.utcnow():
+            logger.warning(f"Access token expired for account {tiktok_account.username}")
+            # Try to refresh the token
+            refreshed = refresh_tiktok_token(tiktok_account)
+            if not refreshed:
+                return jsonify({
+                    'error': 'Access token expired and refresh failed',
+                    'message': 'Please reconnect your TikTok account'
+                }), 401
+            access_token = tiktok_account.access_token
+
+        logger.info(f"Using account: {tiktok_account.username} (ID: {tiktok_account.id})")
+
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json; charset=UTF-8'
         }
-    else:
-        # FILE_UPLOAD
-        video_size = data.get('video_size', 0)
-        # For single chunk upload, chunk_size must equal video_size
-        source_info = {
-            'source': 'FILE_UPLOAD',
-            'video_size': video_size,
-            'chunk_size': video_size,  # Must match video_size for single chunk
-            'total_chunk_count': 1
+
+        # Prepare post info
+        post_info = {
+            'title': data.get('title', ''),
+            'privacy_level': data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),  # Default to public
+            'disable_duet': data.get('disable_duet', False),
+            'disable_comment': data.get('disable_comment', False),
+            'disable_stitch': data.get('disable_stitch', False),
+            'video_cover_timestamp_ms': data.get('video_cover_timestamp_ms', 1000)
         }
-    
-    request_body = {
-        'post_info': post_info,
-        'source_info': source_info
-    }
-    
+
+        # Prepare source info based on upload type
+        source_type = data.get('source_type', 'PULL_FROM_URL')
+
+        if source_type == 'PULL_FROM_URL':
+            source_info = {
+                'source': 'PULL_FROM_URL',
+                'video_url': data.get('video_url')
+            }
+        else:
+            # FILE_UPLOAD
+            video_size = data.get('video_size', 0)
+            # For single chunk upload, chunk_size must equal video_size
+            source_info = {
+                'source': 'FILE_UPLOAD',
+                'video_size': video_size,
+                'chunk_size': video_size,  # Must match video_size for single chunk
+                'total_chunk_count': 1
+            }
+
+        request_body = {
+            'post_info': post_info,
+            'source_info': source_info
+        }
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch video info', 'message': str(e)}), 500
+
     try:
         logger.info(f"TikTok video init request: {request_body}")
         response = requests.post(
