@@ -282,6 +282,18 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #ff9800) !important;
+            color: #212529 !important;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #ff9800, #f57c00) !important;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -1419,6 +1431,9 @@
                                     <i class="fas fa-check"></i> Use This Account
                                 </button>
                             ` : ''}
+                            <button class="btn btn-warning" style="padding: 8px;" onclick="event.stopPropagation(); reauthAccount(${account.id})" title="Get fresh tokens for this account">
+                                <i class="fas fa-sync-alt"></i> Re-auth
+                            </button>
                             <button class="btn btn-secondary" style="${isActive ? 'flex: 1;' : ''} padding: 8px;" onclick="event.stopPropagation(); removeAccount(${account.id})">
                                 <i class="fas fa-trash"></i> Remove
                             </button>
@@ -1481,6 +1496,40 @@
                 }
             } catch (error) {
                 showStatus(`<i class="fas fa-exclamation-circle"></i> Error switching account: ${error.message}`, 'error');
+            }
+        }
+
+        async function reauthAccount(accountId) {
+            const account = currentAccounts.find(a => a.id === accountId);
+            if (!account) return;
+            
+            if (!confirm(`Re-authenticate @${account.username}? This will get fresh tokens with updated permissions.`)) {
+                return;
+            }
+            
+            try {
+                showStatus('<i class="fas fa-spinner fa-spin"></i> Preparing re-authentication...', 'info');
+                
+                const response = await fetch(`/api/accounts/reauth/${accountId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('<i class="fas fa-check-circle"></i> Redirecting to TikTok for re-authentication...', 'success');
+                    // Redirect to TikTok auth
+                    setTimeout(() => {
+                        window.location.href = result.auth_url;
+                    }, 1000);
+                } else {
+                    showStatus(`<i class="fas fa-exclamation-circle"></i> Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`<i class="fas fa-exclamation-circle"></i> Error: ${error.message}`, 'error');
             }
         }
 
