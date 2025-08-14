@@ -366,9 +366,9 @@ def auth_tiktok():
     
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
     logger.info(f"Redirecting to: {auth_url}")
-    # return redirect(auth_url)
+    return redirect(auth_url)
 
-    return redirect(f"https://postify-164860087792.europe-west1.run.app?{urlencode(params)}")
+    # return redirect(f"https://postify-164860087792.europe-west1.run.app?{urlencode(params)}")
 
 @app.route('/auth/tiktok/add')
 @login_required
