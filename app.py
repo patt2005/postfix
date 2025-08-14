@@ -865,7 +865,6 @@ def get_creator_info():
 
 
 @app.route('/api/post/video', methods=['POST'])
-@login_required
 def post_video():
     data = request.get_json()
     
