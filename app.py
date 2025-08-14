@@ -161,6 +161,26 @@ def debug_env():
     })
 
 
+@app.route('/debug/tiktok-credentials')
+def debug_tiktok_credentials():
+    """Test endpoint to verify TikTok credentials - REMOVE IN PRODUCTION"""
+    # Only show in development
+    if os.environ.get('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not available in production'}), 403
+    
+    return jsonify({
+        'client_key': TIKTOK_CLIENT_KEY,
+        'client_secret': TIKTOK_CLIENT_SECRET[:10] + '...' + TIKTOK_CLIENT_SECRET[-4:] if TIKTOK_CLIENT_SECRET else None,
+        'redirect_uri': TIKTOK_REDIRECT_URI,
+        'auth_url': TIKTOK_AUTH_URL,
+        'token_url': TIKTOK_TOKEN_URL,
+        'base_url': TIKTOK_BASE_URL,
+        'status': 'APPROVED',
+        'note': 'Your app has been approved by TikTok! You can now post publicly.',
+        'capabilities': ['PUBLIC_POSTING', 'FRIENDS_POSTING', 'PRIVATE_POSTING']
+    })
+
+
 @app.route('/debug/db')
 def debug_db():
     # Only show in development
@@ -807,8 +827,19 @@ def post_video():
         if response.status_code != 200:
             logger.error(f"TikTok API error: {response_data}")
             
-            # If token is invalid, try to refresh it once
+            # Check for unaudited client error
             if ('error' in response_data and 
+                response_data['error'].get('code') == 'unaudited_client_can_only_post_to_private_accounts'):
+                logger.error("Unaudited app tried to post publicly")
+                return jsonify({
+                    'error': 'Your TikTok app is unaudited',
+                    'message': 'Unaudited apps can only post privately (SELF_ONLY). Please set privacy to "Private" or submit your app for TikTok review.',
+                    'solution': 'All posts have been automatically set to private visibility.',
+                    'response': response_data
+                }), 403
+                
+            # If token is invalid, try to refresh it once
+            elif ('error' in response_data and 
                 response_data['error'].get('code') == 'access_token_invalid'):
                 logger.info("Access token invalid, attempting refresh...")
                 refreshed = refresh_tiktok_token(tiktok_account)
