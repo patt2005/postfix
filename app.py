@@ -19,8 +19,29 @@ import json
 load_dotenv()
 
 import logging
-logging.basicConfig(level=logging.INFO)
+import sys
+
+# Configure logging for Google Cloud Run
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),  # Output to stdout for Cloud Run
+        logging.StreamHandler(sys.stderr)   # Also to stderr for errors
+    ]
+)
 logger = logging.getLogger(__name__)
+
+# Force flush for Cloud Run
+class CloudRunHandler(logging.Handler):
+    def emit(self, record):
+        msg = self.format(record)
+        print(msg, flush=True)  # Force flush for immediate output
+
+# Add Cloud Run handler
+cloud_handler = CloudRunHandler()
+cloud_handler.setLevel(logging.INFO)
+logger.addHandler(cloud_handler)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', secrets.token_urlsafe(32))
@@ -145,6 +166,37 @@ def terms_of_service():
 @app.route('/help-center')
 def help_center():
     return render_template('help-center.html')
+
+
+@app.route('/debug/test-logging')
+def test_logging():
+    """Test endpoint to verify logging is working in Cloud Run"""
+    import time
+    timestamp = time.time()
+    
+    # Test different logging methods
+    print(f"PRINT TEST: Timestamp {timestamp}", flush=True)
+    logger.info(f"LOGGER.INFO TEST: Timestamp {timestamp}")
+    logger.warning(f"LOGGER.WARNING TEST: Timestamp {timestamp}")
+    logger.error(f"LOGGER.ERROR TEST: Timestamp {timestamp}")
+    
+    # Also write to stderr
+    sys.stderr.write(f"STDERR TEST: Timestamp {timestamp}\n")
+    sys.stderr.flush()
+    
+    # Force Python to flush all buffers
+    sys.stdout.flush()
+    sys.stderr.flush()
+    
+    return jsonify({
+        'message': 'Logging test completed',
+        'timestamp': timestamp,
+        'check_logs': 'Check Cloud Run logs for the output',
+        'log_locations': [
+            'Google Cloud Console > Cloud Run > Your Service > Logs',
+            'Or use: gcloud run services logs read postify-164860087792 --region=europe-west1'
+        ]
+    })
 
 
 @app.route('/debug/env')
@@ -283,9 +335,18 @@ def auth_tiktok():
         'code_challenge_method': 'S256'
     }
 
-    print(f"-----{params}-----")
+    # Use logger for Cloud Run visibility
+    logger.info("="*50)
+    logger.info(f"TikTok Auth Parameters: {params}")
+    logger.info(f"Client Key: {TIKTOK_CLIENT_KEY}")
+    logger.info(f"Redirect URI: {TIKTOK_REDIRECT_URI}")
+    logger.info("="*50)
+    
+    # Also use print with flush for immediate output
+    print(f"-----{params}-----", flush=True)
     
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
+    logger.info(f"Redirecting to: {auth_url}")
     return redirect(auth_url)
 
 
@@ -1680,4 +1741,19 @@ app.register_blueprint(auth_bp)
 if __name__ == '__main__':
     # Database is already initialized in init_app() above
     port = int(os.environ.get('PORT', 8080))
+    
+    # Log startup information
+    logger.info("="*60)
+    logger.info("Starting Postify TikTok Application")
+    logger.info(f"Port: {port}")
+    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    logger.info(f"Database URL: {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...")
+    logger.info(f"TikTok Client Key: {TIKTOK_CLIENT_KEY}")
+    logger.info(f"TikTok Redirect URI: {TIKTOK_REDIRECT_URI}")
+    logger.info("="*60)
+    
+    # Force flush
+    sys.stdout.flush()
+    sys.stderr.flush()
+    
     app.run(host='0.0.0.0', port=port, debug=False)
