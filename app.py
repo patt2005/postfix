@@ -1278,7 +1278,7 @@ def upload_video_chunk():
         logger.info(f"TikTok upload response status: {response.status_code}")
         
         return jsonify({
-            'success': response.status_code == 200,
+            'success': response.status_code in [200, 201],
             'status_code': response.status_code,
             'response_text': response.text[:200] if response.text else None
         })

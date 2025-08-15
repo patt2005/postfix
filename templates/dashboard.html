@@ -939,7 +939,8 @@
                     
                     const chunkResult = await chunkResponse.json();
                     
-                    if (chunkResult.success) {
+                    // Check for success flag or 200/201 status codes
+                    if (chunkResult.success || chunkResult.status_code === 200 || chunkResult.status_code === 201) {
                         showStatus('<i class="fas fa-check-circle"></i> Video uploaded successfully! Publish ID: ' + result.data.publish_id, 'success');
                         e.target.reset();
                         selectedFile = null;
