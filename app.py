@@ -15,6 +15,7 @@ from flask_migrate import Migrate
 from models import db, User, TikTokAccount, ScheduledPost
 from google.cloud import scheduler
 import json
+from config import TikTokConfig
 
 load_dotenv()
 
@@ -1034,6 +1035,13 @@ def get_creator_info():
 def post_video():
     try:
         data = request.get_json()
+        
+        # REVIEW MODE CHECK
+        if TikTokConfig.is_in_review_mode():
+            privacy_level = data.get('privacy_level')
+            if privacy_level and privacy_level != 'SELF_ONLY':
+                logger.warning(f"Review mode: Forcing privacy to SELF_ONLY (was: {privacy_level})")
+                data['privacy_level'] = 'SELF_ONLY'
 
         # Get the target account from the request
         tiktok_account_id = data.get('tiktok_account_id')
@@ -1714,6 +1722,10 @@ def execute_scheduled_post():
 # Register blueprints
 from auth import auth_bp
 app.register_blueprint(auth_bp)
+
+# Register compliance blueprint for review mode
+from api_compliance import compliance_bp
+app.register_blueprint(compliance_bp)
 
 if __name__ == '__main__':
     # Database is already initialized in init_app() above

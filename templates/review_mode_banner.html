@@ -1,0 +1,310 @@
+<!-- Review Mode Banner Component -->
+<!-- Include this in your dashboard to show review mode status -->
+
+<style>
+    .review-mode-banner {
+        background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
+        animation: pulse 2s infinite;
+        display: none;
+    }
+    
+    .review-mode-banner.active {
+        display: block;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
+        }
+        50% {
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+        }
+    }
+    
+    .review-mode-content {
+        color: white;
+    }
+    
+    .review-mode-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .review-mode-icon {
+        background: rgba(255, 255, 255, 0.2);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+    
+    .review-mode-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .review-mode-subtitle {
+        font-size: 0.9rem;
+        opacity: 0.95;
+        margin: 5px 0 0 0;
+    }
+    
+    .review-mode-restrictions {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    
+    .review-mode-list {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0 0;
+    }
+    
+    .review-mode-list li {
+        padding: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .review-mode-list li:last-child {
+        border-bottom: none;
+    }
+    
+    .review-mode-list i {
+        width: 20px;
+        text-align: center;
+    }
+    
+    .review-mode-progress {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    
+    .review-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .review-step {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+    }
+    
+    .review-step.completed {
+        background: rgba(76, 175, 80, 0.3);
+    }
+    
+    .review-step-icon {
+        font-size: 24px;
+        margin-bottom: 5px;
+    }
+    
+    .review-step-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .privacy-override-notice {
+        background: rgba(255, 255, 255, 0.25);
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .privacy-override-notice i {
+        font-size: 20px;
+    }
+</style>
+
+<div id="reviewModeBanner" class="review-mode-banner">
+    <div class="review-mode-content">
+        <div class="review-mode-header">
+            <div class="review-mode-icon">
+                🔒
+            </div>
+            <div>
+                <h2 class="review-mode-title">App in Review Mode</h2>
+                <p class="review-mode-subtitle">TikTok approval pending - Limited features available</p>
+            </div>
+        </div>
+        
+        <div class="review-mode-restrictions">
+            <strong>Current Restrictions:</strong>
+            <ul class="review-mode-list">
+                <li>
+                    <i class="fas fa-lock"></i>
+                    <span>All posts are <strong>PRIVATE</strong> (visible only to you)</span>
+                </li>
+                <li>
+                    <i class="fas fa-eye-slash"></i>
+                    <span>Public posting disabled until approval</span>
+                </li>
+                <li>
+                    <i class="fas fa-ban"></i>
+                    <span>Commercial content disclosure disabled</span>
+                </li>
+                <li>
+                    <i class="fas fa-upload"></i>
+                    <span>File upload only (URL posting disabled)</span>
+                </li>
+                <li>
+                    <i class="fas fa-chart-line"></i>
+                    <span>Maximum 10 test posts per day</span>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="privacy-override-notice">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>Privacy Override Active:</strong> Any privacy setting you select will be automatically changed to "Only Me" until the app is approved. This ensures compliance with TikTok's review requirements.
+            </div>
+        </div>
+        
+        <div class="review-mode-progress">
+            <strong>Review Progress:</strong>
+            <div class="review-steps">
+                <div class="review-step completed">
+                    <div class="review-step-icon">✅</div>
+                    <div class="review-step-title">App Registered</div>
+                </div>
+                <div class="review-step completed">
+                    <div class="review-step-icon">✅</div>
+                    <div class="review-step-title">UX Compliance</div>
+                </div>
+                <div class="review-step">
+                    <div class="review-step-icon">⏳</div>
+                    <div class="review-step-title">Under Review</div>
+                </div>
+                <div class="review-step">
+                    <div class="review-step-icon">🔓</div>
+                    <div class="review-step-title">Approved</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Check and display review mode status
+    async function checkReviewMode() {
+        try {
+            const response = await fetch('/api/review/status');
+            const data = await response.json();
+            
+            if (data.status && data.status.in_review) {
+                document.getElementById('reviewModeBanner').classList.add('active');
+                
+                // Update privacy selector to show only SELF_ONLY
+                const privacySelects = document.querySelectorAll('select[name="privacy"], #privacy, #privacyFile, #privacyUrl');
+                privacySelects.forEach(select => {
+                    // Disable all options except SELF_ONLY
+                    Array.from(select.options).forEach(option => {
+                        if (option.value !== 'SELF_ONLY' && option.value !== '') {
+                            option.disabled = true;
+                            option.text = option.text + ' (Disabled during review)';
+                        }
+                    });
+                    
+                    // Auto-select SELF_ONLY if something else was selected
+                    if (select.value !== 'SELF_ONLY' && select.value !== '') {
+                        select.value = 'SELF_ONLY';
+                        showReviewModeNotification();
+                    }
+                });
+                
+                // Disable commercial content section
+                const commercialSection = document.querySelector('.commercial-content-section');
+                if (commercialSection) {
+                    commercialSection.style.opacity = '0.5';
+                    commercialSection.style.pointerEvents = 'none';
+                    
+                    // Add disabled notice
+                    const notice = document.createElement('div');
+                    notice.className = 'review-mode-disabled-notice';
+                    notice.innerHTML = '<i class="fas fa-lock"></i> Commercial content disclosure disabled during review';
+                    notice.style.cssText = 'background: #ffecb3; color: #f57c00; padding: 10px; border-radius: 6px; margin-bottom: 10px;';
+                    commercialSection.insertBefore(notice, commercialSection.firstChild);
+                }
+                
+                // Update any submit buttons
+                const submitButtons = document.querySelectorAll('button[type="submit"]');
+                submitButtons.forEach(btn => {
+                    if (!btn.dataset.reviewModeUpdated) {
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '🔒 ' + originalText + ' (Private Post)';
+                        btn.dataset.reviewModeUpdated = 'true';
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error checking review mode:', error);
+        }
+    }
+    
+    function showReviewModeNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'review-mode-notification';
+        notification.innerHTML = `
+            <div style="position: fixed; top: 20px; right: 20px; background: #ff6b6b; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 10000; animation: slideIn 0.3s ease;">
+                <strong>⚠️ Review Mode Active</strong><br>
+                Privacy changed to "Only Me" for compliance
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+    
+    // Add slide-in animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Check review mode on page load
+    document.addEventListener('DOMContentLoaded', checkReviewMode);
+    
+    // Re-check when switching tabs or forms
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.upload-tab, .nav-link')) {
+            setTimeout(checkReviewMode, 100);
+        }
+    });
+</script>
