@@ -23,8 +23,8 @@ TIKTOK_BASE_URL = 'https://open.tiktokapis.com/v2'
 @login_required
 def get_user_profile(account_id):
     """
-    Get TikTok user profile information including followers, avatar, display name
-    Uses Display API: GET /v2/user/info/
+    Get TikTok user profile information using creator_info/query endpoint
+    This works with video.publish scope and provides avatar, username, and nickname
     """
     try:
         # Get the TikTok account
@@ -37,50 +37,40 @@ def get_user_profile(account_id):
         if not account:
             return jsonify({'error': 'Account not found'}), 404
         
-        # Prepare request headers
+        # Use creator_info/query endpoint which works with video.publish scope
         headers = {
             'Authorization': f'Bearer {account.access_token}',
+            'Content-Type': 'application/json; charset=UTF-8'
         }
         
-        # Fields to retrieve - Only basic fields available with user.info.basic scope
-        # According to TikTok docs, user.info.basic includes: open_id, union_id, avatar_url, display_name
-        fields = 'open_id,union_id,avatar_url,display_name'
-        
-        # Make API request
-        response = requests.get(
-            f'{TIKTOK_BASE_URL}/user/info/',
-            headers=headers,
-            params={'fields': fields}
+        # Make POST request to creator_info/query endpoint
+        response = requests.post(
+            f'{TIKTOK_BASE_URL}/post/publish/creator_info/query/',
+            headers=headers
         )
-
-        print(response.json())
-        print("-------------")
         
         if response.status_code == 200:
             data = response.json()
             
-            if 'data' in data and 'user' in data['data']:
-                user_info = data['data']['user']
+            if 'data' in data:
+                creator_info = data['data']
                 
-                # Update account information in database with available basic fields
-                account.display_name = user_info.get('display_name')
-                account.avatar_url = user_info.get('avatar_url')
-                # Note: follower_count, following_count, etc. are not available with user.info.basic
-                # Keep existing values if they were set during OAuth callback
+                # Update account information with creator info
+                # creator_username is the unique ID, creator_nickname is the display name
+                account.username = creator_info.get('creator_username', '')
+                account.display_name = creator_info.get('creator_nickname', '')
+                account.avatar_url = creator_info.get('creator_avatar_url', '')
                 account.last_profile_update = datetime.utcnow()
                 
                 db.session.commit()
                 
-                # Format response with available basic fields
-                # Use stored values from database for stats since they're not available with basic scope
+                # Format response with creator info data
                 profile_data = {
                     'account_id': account_id,
-                    'username': account.username,
-                    'display_name': user_info.get('display_name'),
-                    'avatar_url': user_info.get('avatar_url'),
-                    'open_id': user_info.get('open_id'),
-                    'union_id': user_info.get('union_id'),
-                    'bio': account.bio,  # Use stored value
+                    'username': creator_info.get('creator_username', ''),  # Unique ID
+                    'display_name': creator_info.get('creator_nickname', ''),  # Display name
+                    'avatar_url': creator_info.get('creator_avatar_url', ''),
+                    'bio': account.bio,  # Use stored value if available
                     'is_verified': account.is_verified,  # Use stored value
                     'stats': {
                         'followers': account.follower_count or 0,  # Use stored values
@@ -88,10 +78,16 @@ def get_user_profile(account_id):
                         'likes': account.likes_count or 0,
                         'videos': account.video_count or 0
                     },
+                    # Additional creator info fields
+                    'privacy_level_options': creator_info.get('privacy_level_options', []),
+                    'comment_disabled': creator_info.get('comment_disabled', False),
+                    'duet_disabled': creator_info.get('duet_disabled', False),
+                    'stitch_disabled': creator_info.get('stitch_disabled', False),
+                    'max_video_duration': creator_info.get('max_video_post_duration_sec', 60),
                     'last_updated': account.last_profile_update.isoformat() if account.last_profile_update else None
                 }
                 
-                logger.info(f"Profile fetched for @{account.username} - {user_info.get('display_name')}")
+                logger.info(f"Profile fetched for {creator_info.get('creator_username')} - {creator_info.get('creator_nickname')}")
                 
                 return jsonify({
                     'success': True,

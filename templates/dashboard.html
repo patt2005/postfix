@@ -760,7 +760,7 @@
                 <div class="profile-info">
                     <div class="profile-name">
                         <h2 id="profileDisplayName">Loading...</h2>
-                        <span id="profileUsername" class="username">@loading</span>
+                        <span id="profileUsername" class="username"></span>
                         <i id="verifiedBadge" class="fas fa-check-circle" style="color: #20D5EC; display: none;" title="Verified"></i>
                     </div>
                     <div class="profile-bio" id="profileBio" style="margin: 10px 0; color: #666;"></div>
@@ -829,7 +829,7 @@
                                     data-display-name="{{ account.display_name }}"
                                     data-avatar="{{ account.avatar_url }}"
                                     data-followers="{{ account.follower_count }}">
-                                @{{ account.username }}{% if account.display_name %} ({{ account.display_name }}){% endif %}
+                                {{ account.display_name or account.username }}
                             </option>
                             {% endfor %}
                         </select>
@@ -904,21 +904,27 @@
                 <div class="form-group">
                     <label for="privacy" class="required">Privacy Status</label>
                     <select id="privacy" name="privacy" required>
-                        <option value="">-- Select Privacy Level --</option>
+                        <option value="" disabled selected>-- Select Privacy Level (Required) --</option>
                     </select>
-                    <div class="privacy-note">Please select who can view your video</div>
+                    <div class="privacy-note" style="color: #ff0050; font-weight: 500;">
+                        <i class="fas fa-exclamation-circle"></i> You must manually select a privacy level - no default is set
+                    </div>
                 </div>
 
                 <!-- Interaction Settings -->
                 <div class="form-group">
                     <label>Interaction Settings</label>
+                    <div class="interaction-note" style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
+                        <i class="fas fa-info-circle"></i> <strong>Important:</strong> You must manually enable each interaction - none are checked by default
+                    </div>
                     <div class="interaction-controls">
-                        <div class="interaction-item">
+                        <div class="interaction-item" id="commentControl">
                             <div class="interaction-label">
                                 <i class="fas fa-comment"></i>
                                 <div>
                                     <div>Allow Comments</div>
                                     <small style="color: #666;">Let viewers comment on your video</small>
+                                    <small id="commentDisabledReason" style="color: #ff0050; display: none;">Disabled in your account settings</small>
                                 </div>
                             </div>
                             <div class="interaction-toggle">
@@ -933,6 +939,7 @@
                                 <div>
                                     <div>Allow Duet</div>
                                     <small style="color: #666;">Let others create duets with your video</small>
+                                    <small id="duetDisabledReason" style="color: #ff0050; display: none;">Disabled in your account settings</small>
                                 </div>
                             </div>
                             <div class="interaction-toggle">
@@ -947,6 +954,7 @@
                                 <div>
                                     <div>Allow Stitch</div>
                                     <small style="color: #666;">Let others use parts of your video</small>
+                                    <small id="stitchDisabledReason" style="color: #ff0050; display: none;">Disabled in your account settings</small>
                                 </div>
                             </div>
                             <div class="interaction-toggle">
@@ -954,6 +962,9 @@
                                 <span class="interaction-toggle-slider"></span>
                             </div>
                         </div>
+                    </div>
+                    <div class="photo-note" id="photoInteractionNote" style="display: none; background: #e3f2fd; border: 1px solid #2196F3; padding: 10px; border-radius: 5px; margin-top: 15px; font-size: 13px;">
+                        <i class="fas fa-image"></i> <strong>Photo Post:</strong> Only 'Allow Comments' is available (Duet and Stitch apply to videos only)
                     </div>
                 </div>
 
@@ -1050,6 +1061,7 @@
         let selectedFile = null;
         let videoDurationSeconds = 0;
         let currentAccount = null;
+        let accountCreatorInfo = {}; // Store creator info per account
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1096,12 +1108,12 @@
             
             // REQUIREMENT 1a: Display creator's nickname
             if (creatorInfo.creator_nickname) {
-                document.getElementById('creatorNickname').textContent = `@${creatorInfo.creator_nickname}`;
+                document.getElementById('creatorNickname').textContent = creatorInfo.creator_nickname;
                 // Also update account info if available
                 if (creatorInfo.account_info) {
                     const accountText = creatorInfo.account_info.display_name || creatorInfo.account_info.username;
                     if (accountText) {
-                        document.getElementById('creatorNickname').textContent = `@${creatorInfo.creator_nickname} (${accountText})`;
+                        document.getElementById('creatorNickname').textContent = accountText;
                     }
                 }
             }
@@ -1137,46 +1149,108 @@
             });
         }
 
-        // Update privacy options from API
-        function updatePrivacyOptions() {
+        // Update privacy options based on account-specific settings
+        function updatePrivacyOptionsForAccount(accountId) {
             const privacySelect = document.getElementById('privacy');
-            privacySelect.innerHTML = '<option value="">-- Select Privacy Level --</option>';
+            
+            // Clear existing options but keep the required placeholder
+            privacySelect.innerHTML = '<option value="" disabled selected>-- Select Privacy Level (Required) --</option>';
+            
+            // Reset selection to force user to choose
+            privacySelect.value = '';
 
-            const privacyOptions = creatorInfo?.privacy_level_options || [
-                { value: 'PUBLIC_TO_EVERYONE', label: 'Public' },
-                { value: 'MUTUAL_FOLLOW_FRIENDS', label: 'Friends' },
-                { value: 'SELF_ONLY', label: 'Only Me' }
-            ];
+            // Get account-specific privacy options
+            const creatorSettings = accountCreatorInfo[accountId];
+            const privacyOptions = creatorSettings?.privacy_level_options || ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'];
 
-            privacyOptions.forEach(option => {
+            // Map privacy level values to user-friendly labels
+            const privacyLabels = {
+                'PUBLIC_TO_EVERYONE': 'Public - Everyone can view',
+                'MUTUAL_FOLLOW_FRIENDS': 'Friends - Mutual friends only',
+                'FOLLOWER_OF_CREATOR': 'Followers - Your followers only',
+                'SELF_ONLY': 'Private - Only you can view'
+            };
+
+            privacyOptions.forEach(optionValue => {
                 const opt = document.createElement('option');
-                opt.value = option.value;
-                opt.textContent = option.label;
+                opt.value = optionValue;
+                opt.textContent = privacyLabels[optionValue] || optionValue;
                 privacySelect.appendChild(opt);
             });
+            
+            // Highlight that selection is required
+            privacySelect.style.borderColor = '#ff0050';
+            privacySelect.addEventListener('change', function() {
+                if (this.value) {
+                    this.style.borderColor = '#ddd'; // Reset border when selected
+                }
+            }, { once: true });
+        }
+        
+        // Legacy function for backward compatibility
+        function updatePrivacyOptions() {
+            if (currentAccount) {
+                updatePrivacyOptionsForAccount(currentAccount.id);
+            }
         }
 
-        // Update interaction settings
-        function updateInteractionSettings() {
-            if (!creatorInfo) return;
+        // Update interaction settings based on account-specific restrictions
+        function updateInteractionSettingsForAccount(accountId) {
+            const creatorSettings = accountCreatorInfo[accountId];
+            if (!creatorSettings) return;
 
-            // Check if interactions are disabled in app settings
-            if (creatorInfo.comment_disabled) {
-                const commentToggle = document.getElementById('allowComments');
+            // Get all interaction controls
+            const commentToggle = document.getElementById('allowComments');
+            const duetToggle = document.getElementById('allowDuet');
+            const stitchToggle = document.getElementById('allowStitch');
+            
+            const commentControl = document.getElementById('commentControl');
+            const duetControl = document.getElementById('duetControl');
+            const stitchControl = document.getElementById('stitchControl');
+            
+            // Reset all toggles to unchecked (no default checked state)
+            commentToggle.checked = false;
+            duetToggle.checked = false;
+            stitchToggle.checked = false;
+            
+            // Handle comment toggle based on creator settings
+            if (creatorSettings.comment_disabled) {
                 commentToggle.disabled = true;
-                commentToggle.parentElement.style.opacity = '0.5';
+                commentControl.style.opacity = '0.5';
+                document.getElementById('commentDisabledReason').style.display = 'block';
+            } else {
+                commentToggle.disabled = false;
+                commentControl.style.opacity = '1';
+                document.getElementById('commentDisabledReason').style.display = 'none';
             }
 
-            if (creatorInfo.duet_disabled) {
-                const duetToggle = document.getElementById('allowDuet');
+            // Handle duet toggle based on creator settings
+            if (creatorSettings.duet_disabled) {
                 duetToggle.disabled = true;
-                duetToggle.parentElement.style.opacity = '0.5';
+                duetControl.style.opacity = '0.5';
+                document.getElementById('duetDisabledReason').style.display = 'block';
+            } else {
+                duetToggle.disabled = false;
+                duetControl.style.opacity = '1';
+                document.getElementById('duetDisabledReason').style.display = 'none';
             }
 
-            if (creatorInfo.stitch_disabled) {
-                const stitchToggle = document.getElementById('allowStitch');
+            // Handle stitch toggle based on creator settings
+            if (creatorSettings.stitch_disabled) {
                 stitchToggle.disabled = true;
-                stitchToggle.parentElement.style.opacity = '0.5';
+                stitchControl.style.opacity = '0.5';
+                document.getElementById('stitchDisabledReason').style.display = 'block';
+            } else {
+                stitchToggle.disabled = false;
+                stitchControl.style.opacity = '1';
+                document.getElementById('stitchDisabledReason').style.display = 'none';
+            }
+        }
+        
+        // Legacy function for backward compatibility
+        function updateInteractionSettings() {
+            if (currentAccount) {
+                updateInteractionSettingsForAccount(currentAccount.id);
             }
         }
 
@@ -1252,7 +1326,7 @@
                 removeAccountBtn.addEventListener('click', async () => {
                     if (!currentAccount) return;
                     
-                    const confirmRemove = confirm(`Are you sure you want to remove @${currentAccount.username} from your account?\n\nThis will revoke access and you'll need to reconnect if you want to use this account again.`);
+                    const confirmRemove = confirm(`Are you sure you want to remove ${currentAccount.display_name || currentAccount.username} from your account?\n\nThis will revoke access and you'll need to reconnect if you want to use this account again.`);
                     
                     if (confirmRemove) {
                         try {
@@ -1264,7 +1338,7 @@
                             });
                             
                             if (response.ok) {
-                                showStatus(`Account @${currentAccount.username} has been removed.`, 'success');
+                                showStatus(`Account ${currentAccount.display_name || currentAccount.username} has been removed.`, 'success');
                                 
                                 // Remove from select
                                 const option = accountPicker.querySelector(`option[value="${currentAccount.id}"]`);
@@ -1403,9 +1477,10 @@
                 placeholder.style.display = 'flex';
             }
             
-            // Update info
-            document.getElementById('accountDisplayName').textContent = account.display_name || account.username;
-            document.getElementById('accountUsername').textContent = `@${account.username}`;
+            // Update info - show only display name
+            const displayName = account.display_name || account.username;
+            document.getElementById('accountDisplayName').textContent = displayName;
+            document.getElementById('accountUsername').textContent = '';  // No separate username display
             
             if (account.followers) {
                 document.getElementById('accountFollowers').textContent = `${formatNumber(account.followers)} followers`;
@@ -1420,6 +1495,26 @@
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
             
+            // Check file type for interaction settings
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            const isPhoto = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+            
+            // Handle interaction settings for photo vs video
+            if (isPhoto) {
+                // For photos, hide duet and stitch options (not applicable)
+                document.getElementById('duetControl').style.display = 'none';
+                document.getElementById('stitchControl').style.display = 'none';
+                document.getElementById('photoInteractionNote').style.display = 'block';
+                // Uncheck duet and stitch for photos
+                document.getElementById('allowDuet').checked = false;
+                document.getElementById('allowStitch').checked = false;
+            } else {
+                // For videos, show all interaction options (if not disabled by account)
+                document.getElementById('duetControl').style.display = 'block';
+                document.getElementById('stitchControl').style.display = 'block';
+                document.getElementById('photoInteractionNote').style.display = 'none';
+            }
+            
             // Create video preview
             const videoPreview = document.getElementById('videoPreview');
             const url = URL.createObjectURL(file);
@@ -1430,13 +1525,15 @@
                 videoDurationSeconds = Math.floor(videoPreview.duration);
                 document.getElementById('videoDuration').textContent = videoDurationSeconds;
                 
-                // REQUIREMENT 1c: Check video duration against max_video_post_duration_sec
-                const maxDuration = creatorInfo?.max_video_post_duration_sec || 60;
+                // Check video duration against account-specific max_video_post_duration_sec
+                const accountId = currentAccount?.id;
+                const maxDuration = accountCreatorInfo[accountId]?.max_video_duration || 60;
+                
                 if (videoDurationSeconds > maxDuration) {
                     document.getElementById('durationWarning').style.display = 'block';
                     document.getElementById('durationWarning').innerHTML = 
-                        `<i class="fas fa-exclamation-circle"></i> Video duration (${videoDurationSeconds}s) exceeds maximum allowed duration of ${maxDuration} seconds. Please select a shorter video.`;
-                    showStatus(`Video duration exceeds maximum allowed (${maxDuration}s). Please select a shorter video.`, 'error');
+                        `<i class="fas fa-exclamation-circle"></i> Video duration (${videoDurationSeconds}s) exceeds maximum allowed duration of ${maxDuration} seconds for this account. Please select a shorter video.`;
+                    showStatus(`Video duration exceeds maximum allowed (${maxDuration}s) for this account. Please select a shorter video.`, 'error');
                     
                     // Disable submit button for videos that exceed duration
                     document.getElementById('submitBtn').disabled = true;
@@ -1542,10 +1639,12 @@
                 reasons.push('No video selected');
             }
 
-            // Check video duration
-            if (selectedFile && videoDurationSeconds > (creatorInfo?.max_video_post_duration_sec || 60)) {
+            // Check video duration against account-specific limit
+            const accountId = currentAccount?.id;
+            const maxDuration = accountCreatorInfo[accountId]?.max_video_duration || 60;
+            if (selectedFile && videoDurationSeconds > maxDuration) {
                 canSubmit = false;
-                reasons.push('Video duration exceeds limit');
+                reasons.push(`Video duration exceeds ${maxDuration}s limit`);
             }
 
             // Check title
@@ -1554,10 +1653,16 @@
                 reasons.push('Caption required');
             }
 
-            // Check privacy selection
-            if (!document.getElementById('privacy').value) {
+            // Check privacy selection - REQUIRED with no default
+            const privacyValue = document.getElementById('privacy').value;
+            if (!privacyValue || privacyValue === '') {
                 canSubmit = false;
-                reasons.push('Privacy level not selected');
+                reasons.push('Privacy level must be manually selected (required)');
+                // Highlight the privacy field as required
+                document.getElementById('privacy').style.borderColor = '#ff0050';
+            } else {
+                // Reset border color if privacy is selected
+                document.getElementById('privacy').style.borderColor = '#ddd';
             }
 
             // Check commercial content selection
@@ -1595,11 +1700,22 @@
                 return;
             }
 
-            // REQUIREMENT 1c: Validate video duration before posting
-            if (selectedFile && videoDurationSeconds > (creatorInfo?.max_video_post_duration_sec || 60)) {
-                const maxDuration = creatorInfo?.max_video_post_duration_sec || 60;
-                showStatus(`Video duration (${videoDurationSeconds}s) exceeds maximum allowed (${maxDuration}s)`, 'error');
-                alert(`Your video is too long. Maximum duration allowed is ${maxDuration} seconds.`);
+            // Validate video duration before posting using account-specific limit
+            const accountId = currentAccount?.id;
+            const maxDuration = accountCreatorInfo[accountId]?.max_video_duration || 60;
+            if (selectedFile && videoDurationSeconds > maxDuration) {
+                showStatus(`Video duration (${videoDurationSeconds}s) exceeds maximum allowed (${maxDuration}s) for this account`, 'error');
+                alert(`Your video is too long. Maximum duration allowed for this account is ${maxDuration} seconds.`);
+                return;
+            }
+
+            // Validate privacy selection is made (no default allowed)
+            const privacyLevel = document.getElementById('privacy').value;
+            if (!privacyLevel || privacyLevel === '') {
+                showStatus('You must manually select a privacy level - this is required', 'error');
+                document.getElementById('privacy').style.borderColor = '#ff0050';
+                document.getElementById('privacy').focus();
+                alert('Please select a privacy level for your video.\n\nThis is a required field and you must manually choose an option - no default is allowed.');
                 return;
             }
 
@@ -1662,7 +1778,7 @@
                     // Display compliance information if available
                     if (result.compliance) {
                         if (result.compliance.creator_nickname) {
-                            showStatus(`Uploading to @${result.compliance.creator_nickname}'s account...`, 'processing');
+                            showStatus(`Uploading to ${result.compliance.creator_nickname}'s account...`, 'processing');
                         }
                     } else {
                         showStatus('Uploading video chunks to TikTok...', 'processing');
@@ -1766,6 +1882,26 @@
                 if (response.ok && data.success) {
                     displayUserProfile(data.data);
                     
+                    // Store account-specific creator info
+                    accountCreatorInfo[accountId] = {
+                        max_video_duration: data.data.max_video_duration || 60,
+                        privacy_level_options: data.data.privacy_level_options || ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'],
+                        comment_disabled: data.data.comment_disabled || false,
+                        duet_disabled: data.data.duet_disabled || false,
+                        stitch_disabled: data.data.stitch_disabled || false
+                    };
+                    
+                    // Update max duration display for this account
+                    const maxDuration = accountCreatorInfo[accountId].max_video_duration;
+                    document.getElementById('maxVideoDuration').textContent = maxDuration;
+                    document.getElementById('maxDurationInfo').textContent = maxDuration;
+                    
+                    // Update privacy options for this account
+                    updatePrivacyOptionsForAccount(accountId);
+                    
+                    // Update interaction settings based on account restrictions
+                    updateInteractionSettingsForAccount(accountId);
+                    
                     // Update current account with fresh data
                     if (currentAccount && currentAccount.id == accountId) {
                         currentAccount.avatar_url = data.data.avatar_url;
@@ -1795,9 +1931,14 @@
                 document.getElementById('creatorAvatarIcon').style.display = 'none';
             }
             
-            // Update profile info
-            document.getElementById('profileDisplayName').textContent = profile.display_name || profile.username;
-            document.getElementById('profileUsername').textContent = `@${profile.username}`;
+            // Update profile info - show display name and username if different
+            document.getElementById('profileDisplayName').textContent = profile.display_name || 'User';
+            // Show username (unique ID) only if different from display name
+            if (profile.username && profile.username !== profile.display_name) {
+                document.getElementById('profileUsername').textContent = `@${profile.username}`;
+            } else {
+                document.getElementById('profileUsername').textContent = '';
+            }
             
             // Show verified badge if verified
             if (profile.is_verified) {

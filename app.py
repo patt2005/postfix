@@ -457,15 +457,44 @@ def tiktok_callback():
             }
             
             try:
-                # TikTok API requires fields parameter
-                # With user.info.basic scope, only these fields are available
-                user_info_params = {
-                    'fields': 'open_id,union_id,avatar_url,display_name'
+                # First try creator_info/query endpoint (works with video.publish scope)
+                creator_headers = {
+                    'Authorization': f'Bearer {token_data["access_token"]}',
+                    'Content-Type': 'application/json; charset=UTF-8'
                 }
-                user_response = requests.get('https://open.tiktokapis.com/v2/user/info/', headers=user_info_headers, params=user_info_params)
-                user_data = user_response.json()
                 
-                logger.info(f"TikTok user response: {user_response.status_code}")
+                creator_response = requests.post(
+                    'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+                    headers=creator_headers
+                )
+                
+                if creator_response.status_code == 200:
+                    creator_data = creator_response.json()
+                    logger.info(f"Creator info response: {creator_data}")
+                    
+                    if 'data' in creator_data:
+                        # Use creator info data
+                        creator_info = creator_data['data']
+                        user_data = {
+                            'data': {
+                                'user': {
+                                    'open_id': token_data.get('open_id', ''),
+                                    'display_name': creator_info.get('creator_nickname', ''),
+                                    'username': creator_info.get('creator_username', ''),
+                                    'avatar_url': creator_info.get('creator_avatar_url', '')
+                                }
+                            }
+                        }
+                    else:
+                        user_data = creator_data
+                else:
+                    # Fallback to user/info endpoint if creator_info fails
+                    user_info_params = {
+                        'fields': 'open_id,union_id,avatar_url,display_name'
+                    }
+                    user_response = requests.get('https://open.tiktokapis.com/v2/user/info/', headers=user_info_headers, params=user_info_params)
+                    user_data = user_response.json()
+                
                 logger.info(f"TikTok user data: {user_data}")
                 
                 if 'data' in user_data and 'user' in user_data['data']:
@@ -491,11 +520,18 @@ def tiktok_callback():
                     
                     if existing_account:
                         logger.info(f"Updating existing TikTok account ID: {existing_account.id}")
-                        # Update existing TikTok account with basic fields only
-                        # Username is not available with basic scope, use display_name or existing username
-                        if not existing_account.username or existing_account.username == '':
-                            existing_account.username = tiktok_user.get('display_name', 'TikTok User')
-                        existing_account.display_name = tiktok_user.get('display_name', '')
+                        # Update existing TikTok account
+                        # Use username if available (from creator_info), otherwise use display_name
+                        username = tiktok_user.get('username', '')
+                        display_name = tiktok_user.get('display_name', '')
+                        
+                        if username:
+                            existing_account.username = username
+                        elif display_name:
+                            existing_account.username = display_name
+                            
+                        if display_name:
+                            existing_account.display_name = display_name
                         existing_account.avatar_url = tiktok_user.get('avatar_url', '')
                         # Stats fields not available with basic scope - keep existing values
                         existing_account.access_token = token_data['access_token']
@@ -509,13 +545,16 @@ def tiktok_callback():
                         tiktok_account = existing_account
                     else:
                         logger.info("Creating new TikTok account")
-                        # Create new TikTok account with basic fields only
-                        # Username not available with basic scope, use display_name
+                        # Create new TikTok account
+                        # Use username if available (from creator_info), otherwise use display_name
+                        username = tiktok_user.get('username', '')
+                        display_name = tiktok_user.get('display_name', 'User')
+                        
                         tiktok_account = TikTokAccount(
                             user_id=auth_user_id,
                             tiktok_user_id=tiktok_user['open_id'],
-                            username=tiktok_user.get('display_name', 'TikTok User'),  # Use display_name as username
-                            display_name=tiktok_user.get('display_name', ''),
+                            username=username or display_name,  # Use username if available, else display_name
+                            display_name=display_name,
                             avatar_url=tiktok_user.get('avatar_url', ''),
                             follower_count=0,  # Stats not available with basic scope
                             following_count=0,
@@ -573,8 +612,8 @@ def tiktok_callback():
                         minimal_account = TikTokAccount(
                             user_id=auth_user_id,
                             tiktok_user_id=f'limited_user_{token_hash}',
-                            username='TikTok User',
-                            display_name='TikTok User',
+                            username='User',
+                            display_name='User',
                             avatar_url='',
                             follower_count=0,
                             following_count=0,
@@ -1021,6 +1060,57 @@ def refresh_tiktok_token(tiktok_account):
         import traceback
         logger.error(traceback.format_exc())
         return False
+
+
+@app.route('/api/creator/info/query/<int:account_id>', methods=['POST'])
+@login_required
+def get_creator_info_for_account(account_id):
+    """
+    Get creator info using the creator_info/query endpoint
+    This works with video.publish scope and provides username, nickname, and avatar
+    """
+    try:
+        # Get the TikTok account
+        account = TikTokAccount.query.filter_by(
+            id=account_id,
+            user_id=current_user.id,
+            is_active=True
+        ).first()
+        
+        if not account:
+            return jsonify({'error': 'Account not found'}), 404
+        
+        headers = {
+            'Authorization': f'Bearer {account.access_token}',
+            'Content-Type': 'application/json; charset=UTF-8'
+        }
+        
+        response = requests.post(
+            'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'data' in data:
+                creator_data = data['data']
+                
+                # Update account with latest info
+                account.username = creator_data.get('creator_username', '')
+                account.display_name = creator_data.get('creator_nickname', '')
+                account.avatar_url = creator_data.get('creator_avatar_url', '')
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'data': creator_data
+                })
+        
+        return jsonify({'error': 'Failed to fetch creator info'}), response.status_code
+        
+    except Exception as e:
+        logger.error(f"Error fetching creator info: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/creator/info')
