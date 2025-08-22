@@ -929,9 +929,8 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
-            await fetchCreatorInfo();
-            await fetchUserProfile();  // Fetch profile with Display API
-            setupEventListeners();
+            setupEventListeners();  // Setup listeners first to auto-select account
+            // The account picker change event will call fetchCreatorInfo and fetchUserProfile
             updateSubmitButton();
         });
 
@@ -1013,7 +1012,12 @@
         // Update interaction settings based on account-specific restrictions
         function updateInteractionSettingsForAccount(accountId) {
             const creatorSettings = accountCreatorInfo[accountId];
-            if (!creatorSettings) return;
+            if (!creatorSettings) {
+                console.log('No creator settings found for account', accountId);
+                return;
+            }
+            
+            console.log('Updating interaction settings for account', accountId, 'with settings:', creatorSettings);
 
             // Get all interaction controls
             const commentToggle = document.getElementById('allowComments');
@@ -1116,8 +1120,12 @@
                     updateSubmitButton();
                 });
                 
-                // Auto-select first account if only one exists
+                // Auto-select first account
                 if (accountPicker.options.length === 2) { // 2 because first is placeholder
+                    accountPicker.selectedIndex = 1;
+                    accountPicker.dispatchEvent(new Event('change'));
+                } else if (accountPicker.options.length > 2 && accountPicker.selectedIndex === 0) {
+                    // If multiple accounts and none selected, select the first one
                     accountPicker.selectedIndex = 1;
                     accountPicker.dispatchEvent(new Event('change'));
                 }
@@ -1687,10 +1695,12 @@
                     accountCreatorInfo[accountId] = {
                         max_video_duration: data.data.max_video_duration || 60,
                         privacy_level_options: data.data.privacy_level_options || ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'],
-                        comment_disabled: data.data.comment_disabled || false,
-                        duet_disabled: data.data.duet_disabled || false,
-                        stitch_disabled: data.data.stitch_disabled || false
+                        comment_disabled: data.data.comment_disabled === true,
+                        duet_disabled: data.data.duet_disabled === true,
+                        stitch_disabled: data.data.stitch_disabled === true
                     };
+                    
+                    console.log('Account settings for', accountId, ':', accountCreatorInfo[accountId]);
                     
                     // Update max duration display for this account
                     const maxDuration = accountCreatorInfo[accountId].max_video_duration;
