@@ -162,7 +162,8 @@ def index():
     if current_user.is_authenticated:
         # Get user's TikTok accounts
         tiktok_accounts = TikTokAccount.query.filter_by(user_id=current_user.id).all()
-        return render_template('dashboard.html', tiktok_accounts=tiktok_accounts)
+        # return render_template('dashboard.html', tiktok_accounts=tiktok_accounts)
+        return render_template('index.html')
     return render_template('index.html')
 
 
