@@ -1536,7 +1536,7 @@
         // Fetch user profile using Display API
         async function fetchUserProfile() {
             try {
-                const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts else "" }}';
+                const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts and tiktok_accounts|length > 0 else "" }}';
                 if (!accountId) return;
                 
                 const response = await fetch(`/api/user/profile/${accountId}`);
@@ -1616,7 +1616,7 @@
         
         async function loadUserVideos() {
             try {
-                const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts else "" }}';
+                const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts and tiktok_accounts|length > 0 else "" }}';
                 if (!accountId) return;
                 
                 const response = await fetch(`/api/user/videos/${accountId}`, {

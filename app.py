@@ -12,7 +12,7 @@ import hashlib
 import base64
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
-from models import db, User, TikTokAccount, ScheduledPost
+from models import db, User, TikTokAccount, ScheduledPost, UserVideo
 from google.cloud import scheduler
 import json
 from config import TikTokConfig
@@ -162,7 +162,7 @@ def index():
     if current_user.is_authenticated:
         # Get user's TikTok accounts
         tiktok_accounts = TikTokAccount.query.filter_by(user_id=current_user.id).all()
-        return render_template('dashboard.html', tiktok_accounts=tiktok_accounts)
+        return render_template('dashboard_compliant.html', tiktok_accounts=tiktok_accounts)
     return render_template('index.html')
 
 
@@ -611,7 +611,9 @@ def tiktok_callback():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    # Get user's TikTok accounts for dashboard
+    tiktok_accounts = TikTokAccount.query.filter_by(user_id=current_user.id).all()
+    return render_template('dashboard_compliant.html', tiktok_accounts=tiktok_accounts)
 
 
 @app.route('/schedule_post/<int:account_id>')
