@@ -33,7 +33,7 @@ def get_user_profile(account_id):
             user_id=current_user.id,
             is_active=True
         ).first()
-        
+
         if not account:
             return jsonify({'error': 'Account not found'}), 404
         
@@ -52,6 +52,9 @@ def get_user_profile(account_id):
             headers=headers,
             params={'fields': fields}
         )
+
+        print(response.json())
+        print("-------------")
         
         if response.status_code == 200:
             data = response.json()
