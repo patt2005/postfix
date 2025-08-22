@@ -41,6 +41,8 @@ class TikTokAccount(db.Model):
     username = db.Column(db.String(100), nullable=False)
     display_name = db.Column(db.String(200))
     avatar_url = db.Column(db.String(500))
+    bio = db.Column(db.Text)
+    is_verified = db.Column(db.Boolean, default=False)
     follower_count = db.Column(db.Integer, default=0)
     following_count = db.Column(db.Integer, default=0)
     likes_count = db.Column(db.Integer, default=0)
@@ -56,12 +58,42 @@ class TikTokAccount(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    last_profile_update = db.Column(db.DateTime)
     
     # Relationships
     scheduled_posts = db.relationship('ScheduledPost', backref='tiktok_account', lazy=True, cascade='all, delete-orphan')
+    videos = db.relationship('UserVideo', backref='account', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<TikTokAccount {self.username}>'
+
+
+class UserVideo(db.Model):
+    __tablename__ = 'user_videos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tiktok_account_id = db.Column(db.Integer, db.ForeignKey('tiktok_accounts.id'), nullable=False)
+    video_id = db.Column(db.String(100), unique=True, nullable=False)
+    title = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    create_time = db.Column(db.DateTime)
+    duration = db.Column(db.Integer)  # in seconds
+    height = db.Column(db.Integer)
+    width = db.Column(db.Integer)
+    cover_image_url = db.Column(db.String(500))
+    share_url = db.Column(db.String(500))
+    embed_link = db.Column(db.String(500))
+    embed_html = db.Column(db.Text)
+    view_count = db.Column(db.BigInteger, default=0)
+    like_count = db.Column(db.BigInteger, default=0)
+    comment_count = db.Column(db.BigInteger, default=0)
+    share_count = db.Column(db.BigInteger, default=0)
+    is_selected = db.Column(db.Boolean, default=False)  # User selected for display
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<UserVideo {self.video_id}>'
 
 
 class ScheduledPost(db.Model):

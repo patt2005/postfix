@@ -1727,6 +1727,10 @@ app.register_blueprint(auth_bp)
 from api_compliance import compliance_bp
 app.register_blueprint(compliance_bp)
 
+# Register display API blueprint
+from display_api import display_bp
+app.register_blueprint(display_bp)
+
 if __name__ == '__main__':
     # Database is already initialized in init_app() above
     port = int(os.environ.get('PORT', 8080))

@@ -179,6 +179,170 @@
             margin-right: 10px;
         }
         
+        /* Profile Section Styles */
+        .profile-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .profile-header {
+            display: flex;
+            gap: 25px;
+            align-items: start;
+        }
+        
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #f0f0f0;
+            position: relative;
+        }
+        
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: #999;
+        }
+        
+        .profile-info {
+            flex: 1;
+        }
+        
+        .profile-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .profile-name h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .username {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .profile-stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        
+        /* Videos Section */
+        .videos-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .section-header h3 {
+            margin: 0;
+            color: var(--text-color);
+        }
+        
+        .videos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .video-card {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .video-card:hover {
+            transform: scale(1.05);
+        }
+        
+        .video-thumbnail {
+            width: 100%;
+            padding-bottom: 133%;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 10px;
+            color: white;
+        }
+        
+        .video-title {
+            font-size: 12px;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .video-stats {
+            display: flex;
+            gap: 10px;
+            font-size: 11px;
+            opacity: 0.9;
+        }
+        
+        .video-stat {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
         .posting-section {
             background: white;
             border-radius: 15px;
@@ -571,18 +735,60 @@
     </nav>
 
     <div class="dashboard-container">
+        <!-- Enhanced Profile Section with Display API -->
+        <div id="profileSection" class="profile-section" style="display: none;">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    <img id="profileAvatar" src="" alt="Profile" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-placeholder" style="display: none;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+                <div class="profile-info">
+                    <div class="profile-name">
+                        <h2 id="profileDisplayName">Loading...</h2>
+                        <span id="profileUsername" class="username">@loading</span>
+                        <i id="verifiedBadge" class="fas fa-check-circle" style="color: #20D5EC; display: none;" title="Verified"></i>
+                    </div>
+                    <div class="profile-bio" id="profileBio" style="margin: 10px 0; color: #666;"></div>
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="followerCount">--</span>
+                            <span class="stat-label">Followers</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="followingCount">--</span>
+                            <span class="stat-label">Following</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="likesCount">--</span>
+                            <span class="stat-label">Likes</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="videoCount">--</span>
+                            <span class="stat-label">Videos</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="refreshProfile()" style="margin-top: 15px;">
+                        <i class="fas fa-sync-alt"></i> Refresh Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Creator Info Banner -->
         <div id="creatorInfoBanner" class="creator-info-banner">
             <div class="creator-info-content">
                 <div class="creator-avatar">
-                    <i class="fas fa-user"></i>
+                    <img id="creatorAvatar" src="" alt="" style="width: 50px; height: 50px; border-radius: 50%; display: none;">
+                    <i class="fas fa-user" id="creatorAvatarIcon"></i>
                 </div>
                 <div class="creator-details">
                     <div class="creator-nickname" id="creatorNickname">Loading...</div>
                     <div class="creator-stats">
                         <span>Max video duration: <span id="maxVideoDuration">--</span>s</span>
                         <span>•</span>
-                        <span>Daily post limit: <span id="dailyPostLimit">--</span></span>
+                        <span><span id="followerCountSmall">--</span> followers</span>
                     </div>
                 </div>
             </div>
@@ -757,6 +963,22 @@
             <!-- Status Messages -->
             <div id="postStatus" class="post-status"></div>
         </div>
+        
+        <!-- User Videos Section -->
+        <div id="videosSection" class="videos-section" style="display: none; margin-top: 30px;">
+            <div class="section-header">
+                <h3><i class="fas fa-film"></i> Your Recent Videos</h3>
+                <button class="btn btn-secondary" onclick="loadUserVideos()">
+                    <i class="fas fa-sync"></i> Load Videos
+                </button>
+            </div>
+            <div id="videosGrid" class="videos-grid"></div>
+            <div id="loadMoreContainer" style="text-align: center; margin-top: 20px; display: none;">
+                <button class="btn btn-secondary" onclick="loadMoreVideos()">
+                    Load More Videos
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -769,6 +991,7 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
             await fetchCreatorInfo();
+            await fetchUserProfile();  // Fetch profile with Display API
             setupEventListeners();
             updateSubmitButton();
         });
@@ -1307,6 +1530,162 @@
                 setTimeout(() => {
                     statusDiv.style.display = 'none';
                 }, 10000);
+            }
+        }
+        
+        // Fetch user profile using Display API
+        async function fetchUserProfile() {
+            try {
+                const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts else "" }}';
+                if (!accountId) return;
+                
+                const response = await fetch(`/api/user/profile/${accountId}`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    displayUserProfile(data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+            }
+        }
+        
+        // Display user profile information
+        function displayUserProfile(profile) {
+            // Show profile section
+            document.getElementById('profileSection').style.display = 'block';
+            
+            // Update profile avatar
+            if (profile.avatar_url) {
+                document.getElementById('profileAvatar').src = profile.avatar_url;
+                document.getElementById('profileAvatar').style.display = 'block';
+                
+                // Also update creator banner avatar
+                document.getElementById('creatorAvatar').src = profile.avatar_url;
+                document.getElementById('creatorAvatar').style.display = 'block';
+                document.getElementById('creatorAvatarIcon').style.display = 'none';
+            }
+            
+            // Update profile info
+            document.getElementById('profileDisplayName').textContent = profile.display_name || profile.username;
+            document.getElementById('profileUsername').textContent = `@${profile.username}`;
+            
+            // Show verified badge if verified
+            if (profile.is_verified) {
+                document.getElementById('verifiedBadge').style.display = 'inline-block';
+            }
+            
+            // Update bio
+            if (profile.bio) {
+                document.getElementById('profileBio').textContent = profile.bio;
+            }
+            
+            // Update stats
+            document.getElementById('followerCount').textContent = formatNumber(profile.stats.followers);
+            document.getElementById('followingCount').textContent = formatNumber(profile.stats.following);
+            document.getElementById('likesCount').textContent = formatNumber(profile.stats.likes);
+            document.getElementById('videoCount').textContent = formatNumber(profile.stats.videos);
+            
+            // Update small follower count in banner
+            document.getElementById('followerCountSmall').textContent = formatNumber(profile.stats.followers);
+            
+            // Show videos section
+            document.getElementById('videosSection').style.display = 'block';
+        }
+        
+        // Format large numbers
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+        
+        // Refresh profile
+        async function refreshProfile() {
+            showStatus('Refreshing profile...', 'processing');
+            await fetchUserProfile();
+            showStatus('Profile updated!', 'success');
+        }
+        
+        // Load user videos
+        let videoCursor = 0;
+        let hasMoreVideos = true;
+        
+        async function loadUserVideos() {
+            try {
+                const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts else "" }}';
+                if (!accountId) return;
+                
+                const response = await fetch(`/api/user/videos/${accountId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        max_count: 20,
+                        cursor: videoCursor
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    displayVideos(data.data.videos);
+                    videoCursor = data.data.cursor || 0;
+                    hasMoreVideos = data.data.has_more;
+                    
+                    // Show/hide load more button
+                    document.getElementById('loadMoreContainer').style.display = 
+                        hasMoreVideos ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Error loading videos:', error);
+                showStatus('Failed to load videos', 'error');
+            }
+        }
+        
+        // Display videos in grid
+        function displayVideos(videos) {
+            const grid = document.getElementById('videosGrid');
+            
+            videos.forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.onclick = () => openVideo(video.embed_link);
+                
+                card.innerHTML = `
+                    <div class="video-thumbnail" style="background-image: url('${video.cover_image_url}')">
+                        <div class="video-overlay">
+                            <div class="video-title">${video.title || 'Untitled'}</div>
+                            <div class="video-stats">
+                                <span class="video-stat">
+                                    <i class="fas fa-eye"></i> ${formatNumber(video.stats.views)}
+                                </span>
+                                <span class="video-stat">
+                                    <i class="fas fa-heart"></i> ${formatNumber(video.stats.likes)}
+                                </span>
+                                <span class="video-stat">
+                                    <i class="fas fa-comment"></i> ${formatNumber(video.stats.comments)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+        
+        // Load more videos
+        async function loadMoreVideos() {
+            await loadUserVideos();
+        }
+        
+        // Open video in new tab
+        function openVideo(embedLink) {
+            if (embedLink) {
+                window.open(embedLink, '_blank');
             }
         }
     </script>
