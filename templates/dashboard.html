@@ -1695,17 +1695,19 @@
                     accountCreatorInfo[accountId] = {
                         max_video_duration: data.data.max_video_duration || 60,
                         privacy_level_options: data.data.privacy_level_options || ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'],
-                        comment_disabled: data.data.comment_disabled === true,
-                        duet_disabled: data.data.duet_disabled === true,
-                        stitch_disabled: data.data.stitch_disabled === true
+                        comment_disabled: data.data.comment_disabled,
+                        duet_disabled: data.data.duet_disabled,
+                        stitch_disabled: data.data.stitch_disabled
                     };
                     
                     console.log('Account settings for', accountId, ':', accountCreatorInfo[accountId]);
                     
                     // Update max duration display for this account
                     const maxDuration = accountCreatorInfo[accountId].max_video_duration;
-                    document.getElementById('maxVideoDuration').textContent = maxDuration;
-                    document.getElementById('maxDurationInfo').textContent = maxDuration;
+                    const maxDurationInfoEl = document.getElementById('maxDurationInfo');
+                    if (maxDurationInfoEl) {
+                        maxDurationInfoEl.textContent = maxDuration;
+                    }
                     
                     // Update privacy options for this account
                     updatePrivacyOptionsForAccount(accountId);
@@ -1714,10 +1716,11 @@
                     updateInteractionSettingsForAccount(accountId);
                     
                     // Update current account with fresh data
-                    if (currentAccount && currentAccount.id == accountId) {
+                    if (currentAccount && currentAccount.id === String(accountId)) {
                         currentAccount.avatar_url = data.data.avatar_url;
                         currentAccount.display_name = data.data.display_name;
-                        currentAccount.followers = data.data.stats.followers;
+                        currentAccount.username = data.data.username;
+                        currentAccount.followers = data.data.stats ? data.data.stats.followers : 0;
                         displayAccountInfo(currentAccount);
                     }
                 }
