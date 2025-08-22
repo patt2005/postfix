@@ -162,7 +162,7 @@ def index():
     try:
         if current_user.is_authenticated:
             tiktok_accounts = TikTokAccount.query.filter_by(user_id=current_user.id).all()
-            return render_template('dashboard.html', tiktok_accounts=tiktok_accounts)
+            return render_template('dashboard_compliant.html', tiktok_accounts=tiktok_accounts)
         return render_template('index.html')
     except Exception as e:
         return jsonify({'error': str(e)})
