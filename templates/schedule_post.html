@@ -2,11 +2,24 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Creator Info Banner -->
+    <div id="creatorInfoBanner" class="alert alert-info" style="display: none;">
+        <strong>Posting to: <span id="creatorNickname">@{{ account.username }}</span></strong>
+        <br>
+        <small>Max video duration: <span id="maxVideoDuration">--</span> seconds</small>
+    </div>
+    
+    <!-- Posting Restriction Alert -->
+    <div id="postingRestriction" class="alert alert-danger" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="restrictionMessage">You've reached your posting limit. Please try again later.</span>
+    </div>
+    
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h4>Schedule a Post for @{{ account.username }}</h4>
+                    <h4>Schedule a Post for <span id="accountDisplayName">@{{ account.username }}</span></h4>
                 </div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data" id="scheduleForm">
@@ -24,6 +37,13 @@
                             <label for="video" class="form-label">Video File</label>
                             <input type="file" class="form-control" id="video" name="video" accept="video/*" required>
                             <small class="text-muted">Supported formats: MP4, MOV, AVI, FLV, WMV (Max 500MB)</small>
+                            <small class="text-muted d-block">Max duration: <span id="maxDurationInfo">--</span> seconds</small>
+                            <div id="videoInfo" style="display: none; margin-top: 10px;">
+                                <small>Duration: <span id="videoDuration">--</span> seconds</small>
+                                <div id="durationWarning" class="alert alert-danger mt-2" style="display: none;">
+                                    <i class="fas fa-exclamation-circle"></i> Video exceeds maximum duration!
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
@@ -59,11 +79,119 @@
 </div>
 
 <script>
+let creatorInfo = null;
+let videoDurationSeconds = 0;
+let canPost = true;
+
+// Fetch creator info on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchCreatorInfo();
+    setupEventListeners();
+});
+
+// REQUIREMENT 1: Fetch creator info when page loads
+async function fetchCreatorInfo() {
+    try {
+        const response = await fetch(`/api/creator/info/enhanced?account_id={{ account.id }}`);
+        const data = await response.json();
+        
+        if (response.ok && data.data) {
+            creatorInfo = data.data;
+            updateCreatorInfoDisplay();
+        } else {
+            console.error('Failed to fetch creator info:', data);
+        }
+    } catch (error) {
+        console.error('Error fetching creator info:', error);
+    }
+}
+
+// Update UI with creator info
+function updateCreatorInfoDisplay() {
+    if (!creatorInfo) return;
+    
+    // REQUIREMENT 1a: Display creator nickname
+    document.getElementById('creatorInfoBanner').style.display = 'block';
+    if (creatorInfo.creator_nickname) {
+        document.getElementById('creatorNickname').textContent = `@${creatorInfo.creator_nickname}`;
+        document.getElementById('accountDisplayName').textContent = `@${creatorInfo.creator_nickname}`;
+    }
+    
+    // REQUIREMENT 1c: Display max video duration
+    const maxDuration = creatorInfo.max_video_post_duration_sec || 60;
+    document.getElementById('maxVideoDuration').textContent = maxDuration;
+    document.getElementById('maxDurationInfo').textContent = maxDuration;
+    
+    // REQUIREMENT 1b: Check if creator can post
+    if (creatorInfo.creator_can_post === false) {
+        canPost = false;
+        document.getElementById('postingRestriction').style.display = 'block';
+        document.querySelector('button[type="submit"]').disabled = true;
+        // Disable all form inputs
+        document.querySelectorAll('#scheduleForm input, #scheduleForm textarea, #scheduleForm select').forEach(el => {
+            el.disabled = true;
+        });
+    }
+}
+
+function setupEventListeners() {
+    // Video file selection
+    document.getElementById('video').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            checkVideoDuration(file);
+        }
+    });
+}
+
+// REQUIREMENT 1c: Check video duration
+function checkVideoDuration(file) {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = function() {
+        window.URL.revokeObjectURL(video.src);
+        videoDurationSeconds = Math.floor(video.duration);
+        
+        document.getElementById('videoInfo').style.display = 'block';
+        document.getElementById('videoDuration').textContent = videoDurationSeconds;
+        
+        const maxDuration = creatorInfo?.max_video_post_duration_sec || 60;
+        if (videoDurationSeconds > maxDuration) {
+            document.getElementById('durationWarning').style.display = 'block';
+            document.getElementById('durationWarning').innerHTML = 
+                `<i class="fas fa-exclamation-circle"></i> Video duration (${videoDurationSeconds}s) exceeds maximum allowed (${maxDuration}s). Please select a shorter video.`;
+            document.querySelector('button[type="submit"]').disabled = true;
+        } else {
+            document.getElementById('durationWarning').style.display = 'none';
+            if (canPost) {
+                document.querySelector('button[type="submit"]').disabled = false;
+            }
+        }
+    };
+    
+    video.src = URL.createObjectURL(file);
+}
+
 document.getElementById('scheduleForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    // REQUIREMENT 1b: Stop if creator cannot post
+    if (!canPost) {
+        alert('You cannot make more posts at this moment. Please try again later.');
+        return;
+    }
+    
+    // REQUIREMENT 1c: Validate video duration
+    const maxDuration = creatorInfo?.max_video_post_duration_sec || 60;
+    if (videoDurationSeconds > maxDuration) {
+        alert(`Video duration (${videoDurationSeconds}s) exceeds maximum allowed (${maxDuration}s). Please select a shorter video.`);
+        return;
+    }
+    
     const formData = new FormData(this);
     formData.append('tiktok_account_id', {{ account.id }});
+    formData.append('video_duration', videoDurationSeconds);
     
     try {
         const response = await fetch('/api/scheduled/create', {

@@ -773,15 +773,24 @@
             updateSubmitButton();
         });
 
-        // Fetch creator info
+        // Fetch creator info - REQUIREMENT 1: Retrieve latest creator info
         async function fetchCreatorInfo() {
             try {
-                const response = await fetch('/api/creator/info');
+                // Get account ID if available
+                const accountId = currentAccount?.id || '';
+                const url = accountId ? `/api/creator/info/enhanced?account_id=${accountId}` : '/api/creator/info/enhanced';
+                
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (response.ok && data.data) {
                     creatorInfo = data.data;
                     updateCreatorInfoDisplay();
+                    
+                    // REQUIREMENT 1b: Check if creator can post
+                    if (!creatorInfo.creator_can_post) {
+                        handlePostingRestriction();
+                    }
                 } else {
                     console.error('Failed to fetch creator info:', data);
                     showStatus('Unable to fetch creator information. Some features may be limited.', 'error');
@@ -799,21 +808,26 @@
             // Show creator banner
             document.getElementById('creatorInfoBanner').classList.add('active');
             
-            // Update creator nickname
+            // REQUIREMENT 1a: Display creator's nickname
             if (creatorInfo.creator_nickname) {
-                document.getElementById('creatorNickname').textContent = creatorInfo.creator_nickname;
+                document.getElementById('creatorNickname').textContent = `@${creatorInfo.creator_nickname}`;
+                // Also update account info if available
+                if (creatorInfo.account_info) {
+                    const accountText = creatorInfo.account_info.display_name || creatorInfo.account_info.username;
+                    if (accountText) {
+                        document.getElementById('creatorNickname').textContent = `@${creatorInfo.creator_nickname} (${accountText})`;
+                    }
+                }
             }
 
-            // Update max video duration
+            // REQUIREMENT 1c: Display max video duration
             const maxDuration = creatorInfo.max_video_post_duration_sec || 60;
             document.getElementById('maxVideoDuration').textContent = maxDuration;
             document.getElementById('maxDurationInfo').textContent = maxDuration;
 
-            // Check posting restrictions
+            // REQUIREMENT 1b: Check posting restrictions
             if (creatorInfo.creator_can_post === false) {
-                document.getElementById('postingRestriction').classList.add('active');
-                document.getElementById('submitBtn').disabled = true;
-                showStatus('You have reached your posting limit. Please try again later.', 'error');
+                handlePostingRestriction();
             }
 
             // Update privacy options
@@ -821,6 +835,20 @@
 
             // Update interaction settings
             updateInteractionSettings();
+        }
+
+        // REQUIREMENT 1b: Handle posting restriction
+        function handlePostingRestriction() {
+            document.getElementById('postingRestriction').classList.add('active');
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('restrictionMessage').textContent = 
+                'You\'ve reached your posting limit for now. Please try again later.';
+            showStatus('Creator cannot make more posts at this moment. Please try again later.', 'error');
+            
+            // Disable form inputs
+            document.querySelectorAll('#postForm input, #postForm select, #postForm textarea').forEach(el => {
+                el.disabled = true;
+            });
         }
 
         // Update privacy options from API
@@ -965,11 +993,16 @@
                 videoDurationSeconds = Math.floor(videoPreview.duration);
                 document.getElementById('videoDuration').textContent = videoDurationSeconds;
                 
-                // Check duration against max
+                // REQUIREMENT 1c: Check video duration against max_video_post_duration_sec
                 const maxDuration = creatorInfo?.max_video_post_duration_sec || 60;
                 if (videoDurationSeconds > maxDuration) {
                     document.getElementById('durationWarning').style.display = 'block';
-                    showStatus(`Video duration (${videoDurationSeconds}s) exceeds maximum allowed (${maxDuration}s)`, 'error');
+                    document.getElementById('durationWarning').innerHTML = 
+                        `<i class="fas fa-exclamation-circle"></i> Video duration (${videoDurationSeconds}s) exceeds maximum allowed duration of ${maxDuration} seconds. Please select a shorter video.`;
+                    showStatus(`Video duration exceeds maximum allowed (${maxDuration}s). Please select a shorter video.`, 'error');
+                    
+                    // Disable submit button for videos that exceed duration
+                    document.getElementById('submitBtn').disabled = true;
                 } else {
                     document.getElementById('durationWarning').style.display = 'none';
                 }
@@ -1111,9 +1144,18 @@
         async function handleFormSubmit(e) {
             e.preventDefault();
 
-            // Double-check creator can post
+            // REQUIREMENT 1b: Stop posting if creator cannot make more posts
             if (creatorInfo?.creator_can_post === false) {
-                showStatus('You have reached your posting limit. Please try again later.', 'error');
+                showStatus('You cannot make more posts at this moment. Please try again later.', 'error');
+                alert('You\'ve reached your posting limit. Please try again later.');
+                return;
+            }
+
+            // REQUIREMENT 1c: Validate video duration before posting
+            if (selectedFile && videoDurationSeconds > (creatorInfo?.max_video_post_duration_sec || 60)) {
+                const maxDuration = creatorInfo?.max_video_post_duration_sec || 60;
+                showStatus(`Video duration (${videoDurationSeconds}s) exceeds maximum allowed (${maxDuration}s)`, 'error');
+                alert(`Your video is too long. Maximum duration allowed is ${maxDuration} seconds.`);
                 return;
             }
 
@@ -1135,17 +1177,20 @@
                     throw new Error(uploadResult.error || 'Upload failed');
                 }
 
-                // Prepare post data
+                // Prepare post data with all required fields
                 const formData = new FormData(e.target);
                 const postData = {
+                    tiktok_account_id: currentAccount?.id, // Include account ID if available
                     source_type: 'FILE_UPLOAD',
                     video_size: uploadResult.size,
+                    video_duration: videoDurationSeconds, // Include duration for validation
                     title: formData.get('title'),
                     privacy_level: formData.get('privacy'),
                     disable_comment: !formData.get('allow_comments'),
                     disable_duet: !formData.get('allow_duet'),
                     disable_stitch: !formData.get('allow_stitch'),
-                    video_cover_timestamp_ms: 1000
+                    video_cover_timestamp_ms: 1000,
+                    user_consent: formData.get('user_consent') // Include user consent
                 };
 
                 // Add commercial content info if applicable
@@ -1158,8 +1203,8 @@
 
                 showStatus('Initiating post to TikTok...', 'processing');
 
-                // Initiate post
-                const response = await fetch('/api/post/video', {
+                // Use compliant API endpoint that includes all UX requirements
+                const response = await fetch('/api/post/video/compliant', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1170,7 +1215,14 @@
                 const result = await response.json();
 
                 if (response.ok && result.data) {
-                    showStatus('Uploading video chunks to TikTok...', 'processing');
+                    // Display compliance information if available
+                    if (result.compliance) {
+                        if (result.compliance.creator_nickname) {
+                            showStatus(`Uploading to @${result.compliance.creator_nickname}'s account...`, 'processing');
+                        }
+                    } else {
+                        showStatus('Uploading video chunks to TikTok...', 'processing');
+                    }
 
                     // Upload video chunk
                     const chunkResponse = await fetch('/api/post/upload/chunk', {
