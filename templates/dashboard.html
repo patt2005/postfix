@@ -631,6 +631,17 @@
             100% { transform: rotate(360deg); }
         }
         
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
         .tooltip {
             position: relative;
             display: inline-block;
@@ -789,6 +800,9 @@
                     <div class="privacy-note" style="color: #ff0050; font-weight: 500;">
                         <i class="fas fa-exclamation-circle"></i> You must manually select a privacy level - no default is set
                     </div>
+                    <div id="brandedContentPrivacyNote" class="privacy-note" style="background: #fff3cd; border: 1px solid #ffc107; padding: 8px; border-radius: 5px; margin-top: 8px; display: none;">
+                        <i class="fas fa-info-circle" style="color: #ff9800;"></i> <strong>Note:</strong> Branded content can only be set to Public or Friends visibility. Private option is disabled.
+                    </div>
                 </div>
 
                 <!-- Interaction Settings -->
@@ -856,12 +870,13 @@
                             <span class="interaction-toggle-slider"></span>
                         </div>
                         <div>
-                            <div style="font-weight: 600;">Content Disclosure</div>
-                            <div style="font-size: 13px; color: #666;">Does this content promote a brand, product, or service?</div>
+                            <div style="font-weight: 600;">Content Disclosure Setting</div>
+                            <div style="font-size: 13px; color: #666;">Indicate whether this content promotes yourself, a brand, product or service</div>
+                            <div style="font-size: 11px; color: #999; margin-top: 3px;">This feature is turned off by default</div>
                         </div>
                     </div>
                     
-                    <div id="commercialOptions" class="commercial-options">
+                    <div id="commercialOptions" class="commercial-options" title="You need to indicate if your content promotes yourself, a third party, or both">
                         <div class="commercial-option">
                             <input type="checkbox" id="yourBrand" name="your_brand">
                             <div class="commercial-option-content">
@@ -887,7 +902,7 @@
                             <span id="commercialWarningText">Your video will be labeled accordingly</span>
                         </div>
                         
-                        <div id="commercialSelectionError" class="commercial-warning" style="background: #ffebee; border-color: #ef5350; color: #c62828;">
+                        <div id="commercialSelectionError" class="commercial-warning" style="background: #ffebee; border-color: #ef5350; color: #c62828; display: none;">
                             <i class="fas fa-exclamation-circle"></i>
                             You need to indicate if your content promotes yourself, a third party, or both.
                         </div>
@@ -898,10 +913,10 @@
                 <div class="consent-declaration">
                     <input type="checkbox" id="userConsent" name="user_consent" required>
                     <div class="consent-text">
-                        <strong>By posting, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a><span id="additionalPolicies"></span></strong>
+                        <strong id="consentDeclaration">By posting, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a></strong>
                         <br>
                         <small style="color: #666; margin-top: 5px; display: block;">
-                            I understand that my content will be posted to TikTok and may take a few minutes to process and appear on my profile.
+                            <i class="fas fa-info-circle"></i> <strong>Processing Notice:</strong> I understand that after publishing, my content may take a few minutes to fully process and become visible on my TikTok profile due to TikTok's processing and moderation systems.
                         </small>
                     </div>
                 </div>
@@ -916,6 +931,26 @@
 
             <!-- Status Messages -->
             <div id="postStatus" class="post-status"></div>
+            
+            <!-- Post Processing Status -->
+            <div id="processingStatus" style="display: none; margin-top: 20px; padding: 20px; background: #f0f8ff; border: 2px solid #4169e1; border-radius: 8px;">
+                <h4 style="margin-top: 0; color: #4169e1;">
+                    <i class="fas fa-sync fa-spin"></i> Processing Your Post
+                </h4>
+                <div id="processingStage" style="margin: 10px 0; font-weight: 500;"></div>
+                <div style="margin-top: 10px;">
+                    <small style="color: #666;">
+                        <i class="fas fa-info-circle"></i> Average processing times:
+                        <ul style="margin: 5px 0; padding-left: 20px;">
+                            <li>Small videos (< 512 MB): Less than 30 seconds</li>
+                            <li>Medium videos (~ 1 GB): About 1 minute</li>
+                            <li>Large videos (> 2 GB): 2+ minutes</li>
+                        </ul>
+                        Note: Public posts require moderation which may take additional time.
+                    </small>
+                </div>
+                <div id="pollAttempt" style="margin-top: 10px; font-size: 12px; color: #999;"></div>
+            </div>
         </div>
     </div>
 
@@ -931,6 +966,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             setupEventListeners();  // Setup listeners first to auto-select account
             // The account picker change event will call fetchCreatorInfo and fetchUserProfile
+            updateConsentDeclaration();  // Initialize consent declaration
             updateSubmitButton();
         });
 
@@ -1376,35 +1412,70 @@
             const warning = document.getElementById('commercialWarning');
             const warningText = document.getElementById('commercialWarningText');
             const selectionError = document.getElementById('commercialSelectionError');
-            const additionalPolicies = document.getElementById('additionalPolicies');
+            
+            // Detect if it's a photo or video
+            const isPhoto = selectedFile && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(
+                selectedFile.name.split('.').pop().toLowerCase()
+            );
+            const contentType = isPhoto ? 'photo' : 'video';
 
             if (document.getElementById('commercialToggle').checked) {
                 if (!yourBrand && !brandedContent) {
+                    // At least one option must be selected
                     selectionError.style.display = 'block';
                     warning.style.display = 'none';
                 } else {
                     selectionError.style.display = 'none';
                     warning.classList.add('active');
                     
+                    // Apply the exact requirements from the API spec
                     if (yourBrand && brandedContent) {
-                        warningText.textContent = 'Your video will be labeled as "Paid partnership"';
-                        additionalPolicies.innerHTML = ' and <a href="https://www.tiktok.com/community-guidelines/en/monetization-ads/#branded-content" target="_blank">Branded Content Policy</a>';
+                        // Both selected - show "Paid partnership"
+                        warningText.textContent = `Your ${contentType} will be labeled as "Paid partnership"`;
                     } else if (yourBrand) {
-                        warningText.textContent = 'Your video will be labeled as "Promotional content"';
-                        additionalPolicies.innerHTML = '';
+                        // Only Your Brand selected - show "Promotional content"
+                        warningText.textContent = `Your ${contentType} will be labeled as "Promotional content"`;
                     } else if (brandedContent) {
-                        warningText.textContent = 'Your video will be labeled as "Paid partnership"';
-                        additionalPolicies.innerHTML = ' and <a href="https://www.tiktok.com/community-guidelines/en/monetization-ads/#branded-content" target="_blank">Branded Content Policy</a>';
+                        // Only Branded Content selected - show "Paid partnership"
+                        warningText.textContent = `Your ${contentType} will be labeled as "Paid partnership"`;
                     }
                 }
             } else {
+                // Commercial toggle is off - hide warnings and reset checkboxes
                 warning.classList.remove('active');
                 selectionError.style.display = 'none';
-                additionalPolicies.innerHTML = '';
             }
-
+            
+            // Update consent declaration based on commercial content selection
+            updateConsentDeclaration();
             checkPrivacyRestrictions();
             updateSubmitButton();
+        }
+        
+        // Update consent declaration based on commercial content selection
+        function updateConsentDeclaration() {
+            const commercialToggle = document.getElementById('commercialToggle').checked;
+            const yourBrand = document.getElementById('yourBrand').checked;
+            const brandedContent = document.getElementById('brandedContent').checked;
+            const consentDeclaration = document.getElementById('consentDeclaration');
+            
+            if (!consentDeclaration) return;
+            
+            if (commercialToggle) {
+                if (brandedContent) {
+                    // When Branded Content is checked (alone or with Your Brand)
+                    consentDeclaration.innerHTML = 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank">Branded Content Policy</a> and <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>';
+                } else if (yourBrand) {
+                    // When only Your Brand is checked
+                    consentDeclaration.innerHTML = 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>';
+                } else {
+                    // Commercial toggle on but nothing selected - keep default
+                    consentDeclaration.innerHTML = 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>';
+                }
+            } else {
+                // Commercial toggle off - default declaration
+                consentDeclaration.innerHTML = 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>';
+            }
         }
 
         // Check privacy restrictions for branded content
@@ -1412,26 +1483,58 @@
             const brandedContent = document.getElementById('brandedContent').checked;
             const privacySelect = document.getElementById('privacy');
             const commercialToggle = document.getElementById('commercialToggle').checked;
+            const brandedContentNote = document.getElementById('brandedContentPrivacyNote');
 
             if (commercialToggle && brandedContent) {
-                // Disable "Only Me" option for branded content
+                // Show the branded content privacy note
+                if (brandedContentNote) {
+                    brandedContentNote.style.display = 'block';
+                }
+                // Branded content can only be public or friends, not private
                 Array.from(privacySelect.options).forEach(option => {
                     if (option.value === 'SELF_ONLY') {
                         option.disabled = true;
                         option.title = 'Branded content visibility cannot be set to private';
                         
-                        // If currently selected, change to public
+                        // Add visual indication
+                        if (option.textContent && !option.textContent.includes('(Not available')) {
+                            option.textContent = option.textContent + ' (Not available for branded content)';
+                        }
+                        
+                        // If currently selected, automatically switch to public
                         if (privacySelect.value === 'SELF_ONLY') {
-                            privacySelect.value = 'PUBLIC_TO_EVERYONE';
-                            showStatus('Privacy changed to Public as branded content cannot be private', 'info');
+                            // Try to select PUBLIC_TO_EVERYONE first, then fallback to first enabled option
+                            const publicOption = Array.from(privacySelect.options).find(opt => opt.value === 'PUBLIC_TO_EVERYONE');
+                            if (publicOption && !publicOption.disabled) {
+                                privacySelect.value = 'PUBLIC_TO_EVERYONE';
+                                showStatus('Privacy automatically changed to Public as branded content cannot be private', 'info');
+                            } else {
+                                // Fallback to first available option
+                                const firstAvailable = Array.from(privacySelect.options).find(opt => opt.value && !opt.disabled);
+                                if (firstAvailable) {
+                                    privacySelect.value = firstAvailable.value;
+                                    showStatus('Privacy changed as branded content cannot be private', 'info');
+                                }
+                            }
                         }
                     }
                 });
             } else {
-                // Re-enable all options
+                // Hide the branded content privacy note
+                if (brandedContentNote) {
+                    brandedContentNote.style.display = 'none';
+                }
+                
+                // Re-enable all options when branded content is not selected
                 Array.from(privacySelect.options).forEach(option => {
-                    option.disabled = false;
-                    option.title = '';
+                    if (option.value === 'SELF_ONLY') {
+                        option.disabled = false;
+                        option.title = '';
+                        // Remove the "Not available" text if it was added
+                        if (option.textContent && option.textContent.includes('(Not available')) {
+                            option.textContent = option.textContent.replace(' (Not available for branded content)', '');
+                        }
+                    }
                 });
             }
         }
@@ -1611,7 +1714,11 @@
 
                     // Check for success flag or 200/201 status codes
                     if (chunkResult.success || chunkResult.status_code === 200 || chunkResult.status_code === 201) {
-                        showStatus('Video uploaded successfully! Processing...', 'success');
+                        showStatus('Video uploaded successfully! Checking processing status...', 'success');
+                        
+                        // Show processing status section
+                        document.getElementById('processingStatus').style.display = 'block';
+                        document.getElementById('processingStage').textContent = 'Initializing...';
                         
                         // Start polling for status
                         setTimeout(() => checkPostStatus(result.data.publish_id), 5000);
@@ -1632,30 +1739,120 @@
             }
         }
 
-        // Check post status
-        async function checkPostStatus(publishId) {
+        // Check post status with enhanced status handling
+        async function checkPostStatus(publishId, attemptCount = 0) {
+            const MAX_ATTEMPTS = 60; // Maximum polling attempts (5 minutes with 5-second intervals)
+            const POLL_INTERVAL = 5000; // 5 seconds between polls
+            
             try {
                 const response = await fetch(`/api/post/status/${publishId}`);
                 const result = await response.json();
 
                 if (response.ok && result.data) {
                     const status = result.data.status;
+                    const failReason = result.data.fail_reason;
+                    const uploadedBytes = result.data.uploaded_bytes;
+                    const publicPostId = result.data.publicaly_available_post_id;
                     
-                    if (status === 'PUBLISH_COMPLETE') {
-                        showStatus('✅ Video published successfully! It may take a few minutes to appear on your profile.', 'success');
-                    } else if (status === 'FAILED') {
-                        showStatus(`❌ Post failed: ${result.data.fail_reason || 'Unknown error'}`, 'error');
-                    } else {
-                        showStatus(`Processing: ${status}`, 'processing');
-                        
-                        // Continue polling if still processing
-                        if (status === 'PROCESSING_UPLOAD' || status === 'PROCESSING_DOWNLOAD') {
-                            setTimeout(() => checkPostStatus(publishId), 5000);
+                    // Handle different status types according to TikTok API
+                    // Update processing stage display
+                    const processingStage = document.getElementById('processingStage');
+                    const pollAttempt = document.getElementById('pollAttempt');
+                    if (pollAttempt) {
+                        pollAttempt.textContent = `Status check ${attemptCount + 1} of ${MAX_ATTEMPTS}`;
+                    }
+                    
+                    switch(status) {
+                        case 'PROCESSING_UPLOAD':
+                            // Show upload progress if available
+                            if (uploadedBytes) {
+                                showStatus(`⏳ Uploading to TikTok... (${formatFileSize(uploadedBytes)} uploaded)`, 'processing');
+                                if (processingStage) processingStage.textContent = `Stage: Uploading content (${formatFileSize(uploadedBytes)} transferred)`;
+                            } else {
+                                showStatus('⏳ Uploading to TikTok...', 'processing');
+                                if (processingStage) processingStage.textContent = 'Stage: Uploading content to TikTok servers';
+                            }
+                            break;
+                            
+                        case 'PROCESSING_DOWNLOAD':
+                            showStatus('⏳ TikTok is downloading your video...', 'processing');
+                            if (processingStage) processingStage.textContent = 'Stage: TikTok is downloading your video from the provided URL';
+                            break;
+                            
+                        case 'SEND_TO_USER_INBOX':
+                            showStatus('📬 Notification sent to your TikTok inbox. Please complete the post in the TikTok app.', 'info');
+                            document.getElementById('processingStatus').style.display = 'none';
+                            return; // Stop polling for inbox-based posts
+                            
+                        case 'PUBLISH_COMPLETE':
+                            // Check if we have a public post ID
+                            if (publicPostId && publicPostId.length > 0) {
+                                showStatus(`✅ Video published successfully! Post ID: ${publicPostId[0]}. It may take a few minutes to appear publicly on your profile.`, 'success');
+                            } else {
+                                showStatus('✅ Video published successfully! It may undergo moderation before appearing publicly.', 'success');
+                            }
+                            document.getElementById('processingStatus').style.display = 'none';
+                            return; // Stop polling
+                            
+                        case 'FAILED':
+                            // Provide detailed failure reasons
+                            const failureMessages = {
+                                'file_format_check_failed': 'Unsupported media format. Please check the file format.',
+                                'duration_check_failed': 'Video duration exceeds TikTok limits.',
+                                'frame_rate_check_failed': 'Unsupported frame rate.',
+                                'picture_size_check_failed': 'Unsupported picture/video size.',
+                                'internal': 'TikTok server error. Please try again later.',
+                                'video_pull_failed': 'Failed to download video from URL.',
+                                'photo_pull_failed': 'Failed to download photo from URL.',
+                                'publish_cancelled': 'Publishing was cancelled.',
+                                'auth_removed': 'Authorization was removed during processing.',
+                                'spam_risk_too_many_posts': 'Too many posts in the last 24 hours. Please try again later.',
+                                'spam_risk_user_banned_from_posting': 'Account is temporarily banned from posting.',
+                                'spam_risk_text': 'Caption contains risky or spammy content.',
+                                'spam_risk': 'Post flagged as potential spam.'
+                            };
+                            
+                            const errorMessage = failureMessages[failReason] || failReason || 'Unknown error occurred';
+                            showStatus(`❌ Post failed: ${errorMessage}`, 'error');
+                            document.getElementById('processingStatus').style.display = 'none';
+                            return; // Stop polling
+                            
+                        default:
+                            showStatus(`⏳ Processing: ${status}`, 'processing');
+                            if (processingStage) processingStage.textContent = `Stage: ${status}`;
+                    }
+                    
+                    // Continue polling if still processing and haven't exceeded max attempts
+                    if (attemptCount < MAX_ATTEMPTS && 
+                        (status === 'PROCESSING_UPLOAD' || status === 'PROCESSING_DOWNLOAD')) {
+                        setTimeout(() => checkPostStatus(publishId, attemptCount + 1), POLL_INTERVAL);
+                    } else if (attemptCount >= MAX_ATTEMPTS) {
+                        showStatus('⚠️ Status check timeout. The video may still be processing. Check your TikTok profile later.', 'warning');
+                        document.getElementById('processingStatus').style.display = 'none';
+                    }
+                } else {
+                    // Handle API errors
+                    if (result.error && result.error.code) {
+                        switch(result.error.code) {
+                            case 'invalid_publish_id':
+                                showStatus('❌ Invalid publish ID. The post may have already been processed.', 'error');
+                                break;
+                            case 'rate_limit_exceeded':
+                                showStatus('⚠️ Rate limit exceeded. Please wait before checking status again.', 'warning');
+                                break;
+                            default:
+                                showStatus(`❌ Error checking status: ${result.error.message || 'Unknown error'}`, 'error');
                         }
                     }
                 }
             } catch (error) {
                 console.error('Error checking post status:', error);
+                // Retry if network error and haven't exceeded attempts
+                if (attemptCount < MAX_ATTEMPTS) {
+                    setTimeout(() => checkPostStatus(publishId, attemptCount + 1), POLL_INTERVAL);
+                } else {
+                    showStatus('❌ Failed to check post status. Please check your TikTok profile.', 'error');
+                }
             }
         }
 
