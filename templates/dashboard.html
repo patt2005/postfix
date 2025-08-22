@@ -816,23 +816,53 @@
             <h2><i class="fas fa-video"></i> Post to TikTok</h2>
             
             <form id="postForm">
-                <!-- Account Picker -->
+                <!-- Enhanced Account Picker with Management -->
                 {% if tiktok_accounts and tiktok_accounts|length > 0 %}
                 <div class="form-group">
                     <label for="accountPicker" class="required">Select TikTok Account</label>
-                    <select id="accountPicker" name="tiktok_account_id" required>
-                        <option value="">-- Select Account --</option>
-                        {% for account in tiktok_accounts %}
-                        <option value="{{ account.id }}" data-username="{{ account.username }}" data-display-name="{{ account.display_name }}">
-                            @{{ account.username }}{% if account.display_name %} ({{ account.display_name }}){% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    <div class="privacy-note">Choose which account to post from</div>
+                    <div style="display: flex; gap: 10px; align-items: stretch;">
+                        <select id="accountPicker" name="tiktok_account_id" required style="flex: 1;">
+                            <option value="">-- Select Account --</option>
+                            {% for account in tiktok_accounts %}
+                            <option value="{{ account.id }}" 
+                                    data-username="{{ account.username }}" 
+                                    data-display-name="{{ account.display_name }}"
+                                    data-avatar="{{ account.avatar_url }}"
+                                    data-followers="{{ account.follower_count }}">
+                                @{{ account.username }}{% if account.display_name %} ({{ account.display_name }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" id="removeAccountBtn" class="btn btn-secondary" style="padding: 12px 20px;" disabled>
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                        <button type="button" id="addAccountBtn" class="btn btn-primary" style="padding: 12px 20px;">
+                            <i class="fas fa-plus"></i> Add Account
+                        </button>
+                    </div>
+                    <div id="accountInfo" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <img id="accountAvatar" src="" alt="" style="width: 50px; height: 50px; border-radius: 50%; display: none;">
+                            <div id="accountAvatarPlaceholder" style="width: 50px; height: 50px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-user" style="color: #999;"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <div id="accountDisplayName" style="font-weight: 600; font-size: 16px;"></div>
+                                <div id="accountUsername" style="color: #666; font-size: 14px;"></div>
+                                <div id="accountFollowers" style="color: #666; font-size: 13px; margin-top: 3px;"></div>
+                            </div>
+                            <button type="button" id="refreshAccountBtn" class="btn btn-secondary" style="padding: 8px 16px;">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 {% else %}
                 <div class="alert alert-warning" style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <i class="fas fa-exclamation-triangle"></i> No TikTok accounts connected. Please connect your TikTok account first.
+                    <i class="fas fa-exclamation-triangle"></i> No TikTok accounts connected.
+                    <button type="button" id="addFirstAccountBtn" class="btn btn-primary" style="margin-left: 15px;">
+                        <i class="fas fa-plus"></i> Connect TikTok Account
+                    </button>
                 </div>
                 {% endif %}
                 
@@ -1152,23 +1182,46 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            // Account picker
+            // Enhanced Account picker with management
             const accountPicker = document.getElementById('accountPicker');
+            const removeAccountBtn = document.getElementById('removeAccountBtn');
+            const addAccountBtn = document.getElementById('addAccountBtn');
+            const addFirstAccountBtn = document.getElementById('addFirstAccountBtn');
+            const refreshAccountBtn = document.getElementById('refreshAccountBtn');
+            const accountInfo = document.getElementById('accountInfo');
+            
             if (accountPicker) {
                 accountPicker.addEventListener('change', async (e) => {
                     const selectedId = e.target.value;
                     if (selectedId) {
+                        const selectedOption = e.target.options[e.target.selectedIndex];
                         currentAccount = {
                             id: selectedId,
-                            username: e.target.options[e.target.selectedIndex].dataset.username,
-                            display_name: e.target.options[e.target.selectedIndex].dataset.displayName
+                            username: selectedOption.dataset.username,
+                            display_name: selectedOption.dataset.displayName,
+                            avatar_url: selectedOption.dataset.avatar,
+                            followers: selectedOption.dataset.followers
                         };
+                        
+                        // Show account info
+                        displayAccountInfo(currentAccount);
+                        
+                        // Enable remove button
+                        if (removeAccountBtn) {
+                            removeAccountBtn.disabled = false;
+                        }
                         
                         // Refresh creator info and profile for the selected account
                         await fetchCreatorInfo();
                         await fetchUserProfile();
                     } else {
                         currentAccount = null;
+                        if (accountInfo) {
+                            accountInfo.style.display = 'none';
+                        }
+                        if (removeAccountBtn) {
+                            removeAccountBtn.disabled = true;
+                        }
                     }
                     updateSubmitButton();
                 });
@@ -1178,6 +1231,77 @@
                     accountPicker.selectedIndex = 1;
                     accountPicker.dispatchEvent(new Event('change'));
                 }
+            }
+            
+            // Add Account button
+            if (addAccountBtn) {
+                addAccountBtn.addEventListener('click', () => {
+                    window.location.href = '/auth/tiktok/add';
+                });
+            }
+            
+            // Add First Account button
+            if (addFirstAccountBtn) {
+                addFirstAccountBtn.addEventListener('click', () => {
+                    window.location.href = '/auth/tiktok';
+                });
+            }
+            
+            // Remove Account button
+            if (removeAccountBtn) {
+                removeAccountBtn.addEventListener('click', async () => {
+                    if (!currentAccount) return;
+                    
+                    const confirmRemove = confirm(`Are you sure you want to remove @${currentAccount.username} from your account?\n\nThis will revoke access and you'll need to reconnect if you want to use this account again.`);
+                    
+                    if (confirmRemove) {
+                        try {
+                            const response = await fetch(`/api/accounts/${currentAccount.id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                showStatus(`Account @${currentAccount.username} has been removed.`, 'success');
+                                
+                                // Remove from select
+                                const option = accountPicker.querySelector(`option[value="${currentAccount.id}"]`);
+                                if (option) {
+                                    option.remove();
+                                }
+                                
+                                // Reset selection
+                                accountPicker.value = '';
+                                currentAccount = null;
+                                accountInfo.style.display = 'none';
+                                removeAccountBtn.disabled = true;
+                                
+                                // If no accounts left, show the no accounts message
+                                if (accountPicker.options.length === 1) { // Only placeholder left
+                                    location.reload(); // Reload to show the "no accounts" message
+                                }
+                            } else {
+                                const error = await response.json();
+                                showStatus(`Failed to remove account: ${error.error}`, 'error');
+                            }
+                        } catch (error) {
+                            showStatus(`Error removing account: ${error.message}`, 'error');
+                        }
+                    }
+                });
+            }
+            
+            // Refresh Account button
+            if (refreshAccountBtn) {
+                refreshAccountBtn.addEventListener('click', async () => {
+                    if (!currentAccount) return;
+                    
+                    showStatus('Refreshing account information...', 'processing');
+                    await fetchUserProfile();
+                    showStatus('Account information updated!', 'success');
+                });
             }
             
             // File upload
@@ -1257,6 +1381,35 @@
 
             // Form submission
             document.getElementById('postForm').addEventListener('submit', handleFormSubmit);
+        }
+        
+        // Display account info helper
+        function displayAccountInfo(account) {
+            const accountInfo = document.getElementById('accountInfo');
+            if (!accountInfo) return;
+            
+            accountInfo.style.display = 'block';
+            
+            // Update avatar
+            const avatar = document.getElementById('accountAvatar');
+            const placeholder = document.getElementById('accountAvatarPlaceholder');
+            
+            if (account.avatar_url && account.avatar_url !== 'None' && account.avatar_url !== '') {
+                avatar.src = account.avatar_url;
+                avatar.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else {
+                avatar.style.display = 'none';
+                placeholder.style.display = 'flex';
+            }
+            
+            // Update info
+            document.getElementById('accountDisplayName').textContent = account.display_name || account.username;
+            document.getElementById('accountUsername').textContent = `@${account.username}`;
+            
+            if (account.followers) {
+                document.getElementById('accountFollowers').textContent = `${formatNumber(account.followers)} followers`;
+            }
         }
 
         // Handle file selection
@@ -1612,6 +1765,14 @@
                 
                 if (response.ok && data.success) {
                     displayUserProfile(data.data);
+                    
+                    // Update current account with fresh data
+                    if (currentAccount && currentAccount.id == accountId) {
+                        currentAccount.avatar_url = data.data.avatar_url;
+                        currentAccount.display_name = data.data.display_name;
+                        currentAccount.followers = data.data.stats.followers;
+                        displayAccountInfo(currentAccount);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching user profile:', error);
