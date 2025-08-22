@@ -436,7 +436,15 @@
         }
         
         .interaction-toggle input {
-            display: none;
+            opacity: 0;
+            width: 50px;
+            height: 26px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            cursor: pointer;
+            margin: 0;
         }
         
         .interaction-toggle-slider {
@@ -449,6 +457,7 @@
             background-color: #ccc;
             transition: .4s;
             border-radius: 34px;
+            pointer-events: none;
         }
         
         .interaction-toggle-slider:before {
@@ -469,6 +478,10 @@
         
         .interaction-toggle input:checked + .interaction-toggle-slider:before {
             transform: translateX(24px);
+        }
+        
+        .interaction-toggle input:disabled {
+            cursor: not-allowed;
         }
         
         .interaction-toggle input:disabled + .interaction-toggle-slider {
@@ -803,6 +816,26 @@
             <h2><i class="fas fa-video"></i> Post to TikTok</h2>
             
             <form id="postForm">
+                <!-- Account Picker -->
+                {% if tiktok_accounts and tiktok_accounts|length > 0 %}
+                <div class="form-group">
+                    <label for="accountPicker" class="required">Select TikTok Account</label>
+                    <select id="accountPicker" name="tiktok_account_id" required>
+                        <option value="">-- Select Account --</option>
+                        {% for account in tiktok_accounts %}
+                        <option value="{{ account.id }}" data-username="{{ account.username }}" data-display-name="{{ account.display_name }}">
+                            @{{ account.username }}{% if account.display_name %} ({{ account.display_name }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="privacy-note">Choose which account to post from</div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning" style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <i class="fas fa-exclamation-triangle"></i> No TikTok accounts connected. Please connect your TikTok account first.
+                </div>
+                {% endif %}
+                
                 <!-- Video Upload/URL Section -->
                 <div class="form-group">
                     <label class="required">Video Content</label>
@@ -1119,6 +1152,34 @@
 
         // Setup event listeners
         function setupEventListeners() {
+            // Account picker
+            const accountPicker = document.getElementById('accountPicker');
+            if (accountPicker) {
+                accountPicker.addEventListener('change', async (e) => {
+                    const selectedId = e.target.value;
+                    if (selectedId) {
+                        currentAccount = {
+                            id: selectedId,
+                            username: e.target.options[e.target.selectedIndex].dataset.username,
+                            display_name: e.target.options[e.target.selectedIndex].dataset.displayName
+                        };
+                        
+                        // Refresh creator info and profile for the selected account
+                        await fetchCreatorInfo();
+                        await fetchUserProfile();
+                    } else {
+                        currentAccount = null;
+                    }
+                    updateSubmitButton();
+                });
+                
+                // Auto-select first account if only one exists
+                if (accountPicker.options.length === 2) { // 2 because first is placeholder
+                    accountPicker.selectedIndex = 1;
+                    accountPicker.dispatchEvent(new Event('change'));
+                }
+            }
+            
             // File upload
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('videoFile');
@@ -1308,6 +1369,13 @@
             const submitBtn = document.getElementById('submitBtn');
             let canSubmit = true;
             let reasons = [];
+
+            // Check if account is selected
+            const accountPicker = document.getElementById('accountPicker');
+            if (accountPicker && !accountPicker.value) {
+                canSubmit = false;
+                reasons.push('No account selected');
+            }
 
             // Check if creator can post
             if (creatorInfo?.creator_can_post === false) {
