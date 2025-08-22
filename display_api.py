@@ -42,8 +42,9 @@ def get_user_profile(account_id):
             'Authorization': f'Bearer {account.access_token}',
         }
         
-        # Fields to retrieve
-        fields = 'open_id,union_id,avatar_url,avatar_url_100,avatar_url_200,display_name,bio_description,profile_deep_link,is_verified,follower_count,following_count,likes_count,video_count'
+        # Fields to retrieve - Only basic fields available with user.info.basic scope
+        # According to TikTok docs, user.info.basic includes: open_id, union_id, avatar_url, display_name
+        fields = 'open_id,union_id,avatar_url,display_name'
         
         # Make API request
         response = requests.get(
@@ -58,39 +59,36 @@ def get_user_profile(account_id):
             if 'data' in data and 'user' in data['data']:
                 user_info = data['data']['user']
                 
-                # Update account information in database
+                # Update account information in database with available basic fields
                 account.display_name = user_info.get('display_name')
-                account.avatar_url = user_info.get('avatar_url_200') or user_info.get('avatar_url')
-                account.follower_count = user_info.get('follower_count', 0)
-                account.following_count = user_info.get('following_count', 0)
-                account.likes_count = user_info.get('likes_count', 0)
-                account.video_count = user_info.get('video_count', 0)
-                account.is_verified = user_info.get('is_verified', False)
-                account.bio = user_info.get('bio_description', '')
+                account.avatar_url = user_info.get('avatar_url')
+                # Note: follower_count, following_count, etc. are not available with user.info.basic
+                # Keep existing values if they were set during OAuth callback
                 account.last_profile_update = datetime.utcnow()
                 
                 db.session.commit()
                 
-                # Format response
+                # Format response with available basic fields
+                # Use stored values from database for stats since they're not available with basic scope
                 profile_data = {
                     'account_id': account_id,
                     'username': account.username,
                     'display_name': user_info.get('display_name'),
-                    'avatar_url': user_info.get('avatar_url_200') or user_info.get('avatar_url'),
-                    'avatar_url_100': user_info.get('avatar_url_100'),
-                    'bio': user_info.get('bio_description'),
-                    'is_verified': user_info.get('is_verified', False),
+                    'avatar_url': user_info.get('avatar_url'),
+                    'open_id': user_info.get('open_id'),
+                    'union_id': user_info.get('union_id'),
+                    'bio': account.bio,  # Use stored value
+                    'is_verified': account.is_verified,  # Use stored value
                     'stats': {
-                        'followers': user_info.get('follower_count', 0),
-                        'following': user_info.get('following_count', 0),
-                        'likes': user_info.get('likes_count', 0),
-                        'videos': user_info.get('video_count', 0)
+                        'followers': account.follower_count or 0,  # Use stored values
+                        'following': account.following_count or 0,
+                        'likes': account.likes_count or 0,
+                        'videos': account.video_count or 0
                     },
-                    'profile_link': user_info.get('profile_deep_link'),
                     'last_updated': account.last_profile_update.isoformat() if account.last_profile_update else None
                 }
                 
-                logger.info(f"Profile fetched for @{account.username}: {user_info.get('follower_count', 0)} followers")
+                logger.info(f"Profile fetched for @{account.username} - {user_info.get('display_name')}")
                 
                 return jsonify({
                     'success': True,
@@ -430,7 +428,8 @@ def refresh_all_profiles():
                     'Authorization': f'Bearer {account.access_token}',
                 }
                 
-                fields = 'display_name,avatar_url,follower_count,following_count,likes_count,video_count'
+                # Only basic fields available with user.info.basic scope
+                fields = 'open_id,union_id,avatar_url,display_name'
                 
                 response = requests.get(
                     f'{TIKTOK_BASE_URL}/user/info/',
@@ -443,13 +442,10 @@ def refresh_all_profiles():
                     if 'data' in data and 'user' in data['data']:
                         user_info = data['data']['user']
                         
-                        # Update account
+                        # Update account with basic fields only
                         account.display_name = user_info.get('display_name')
                         account.avatar_url = user_info.get('avatar_url')
-                        account.follower_count = user_info.get('follower_count', 0)
-                        account.following_count = user_info.get('following_count', 0)
-                        account.likes_count = user_info.get('likes_count', 0)
-                        account.video_count = user_info.get('video_count', 0)
+                        # Stats fields not available with basic scope - keep existing values
                         account.last_profile_update = datetime.utcnow()
                         
                         refreshed.append(account.username)

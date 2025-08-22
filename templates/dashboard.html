@@ -1809,14 +1809,14 @@
                 document.getElementById('profileBio').textContent = profile.bio;
             }
             
-            // Update stats
-            document.getElementById('followerCount').textContent = formatNumber(profile.stats.followers);
-            document.getElementById('followingCount').textContent = formatNumber(profile.stats.following);
-            document.getElementById('likesCount').textContent = formatNumber(profile.stats.likes);
-            document.getElementById('videoCount').textContent = formatNumber(profile.stats.videos);
+            // Update stats (may be 0 if not available with basic scope)
+            document.getElementById('followerCount').textContent = profile.stats.followers ? formatNumber(profile.stats.followers) : '--';
+            document.getElementById('followingCount').textContent = profile.stats.following ? formatNumber(profile.stats.following) : '--';
+            document.getElementById('likesCount').textContent = profile.stats.likes ? formatNumber(profile.stats.likes) : '--';
+            document.getElementById('videoCount').textContent = profile.stats.videos ? formatNumber(profile.stats.videos) : '--';
             
             // Update small follower count in banner
-            document.getElementById('followerCountSmall').textContent = formatNumber(profile.stats.followers);
+            document.getElementById('followerCountSmall').textContent = profile.stats.followers ? formatNumber(profile.stats.followers) : '--';
             
             // Show videos section
             document.getElementById('videosSection').style.display = 'block';

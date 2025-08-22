@@ -458,8 +458,9 @@ def tiktok_callback():
             
             try:
                 # TikTok API requires fields parameter
+                # With user.info.basic scope, only these fields are available
                 user_info_params = {
-                    'fields': 'open_id,union_id,avatar_url,display_name,username,follower_count,following_count,likes_count,video_count'
+                    'fields': 'open_id,union_id,avatar_url,display_name'
                 }
                 user_response = requests.get('https://open.tiktokapis.com/v2/user/info/', headers=user_info_headers, params=user_info_params)
                 user_data = user_response.json()
@@ -490,14 +491,13 @@ def tiktok_callback():
                     
                     if existing_account:
                         logger.info(f"Updating existing TikTok account ID: {existing_account.id}")
-                        # Update existing TikTok account
-                        existing_account.username = tiktok_user.get('username', '')
+                        # Update existing TikTok account with basic fields only
+                        # Username is not available with basic scope, use display_name or existing username
+                        if not existing_account.username or existing_account.username == '':
+                            existing_account.username = tiktok_user.get('display_name', 'TikTok User')
                         existing_account.display_name = tiktok_user.get('display_name', '')
                         existing_account.avatar_url = tiktok_user.get('avatar_url', '')
-                        existing_account.follower_count = tiktok_user.get('follower_count', 0)
-                        existing_account.following_count = tiktok_user.get('following_count', 0)
-                        existing_account.likes_count = tiktok_user.get('likes_count', 0)
-                        existing_account.video_count = tiktok_user.get('video_count', 0)
+                        # Stats fields not available with basic scope - keep existing values
                         existing_account.access_token = token_data['access_token']
                         existing_account.refresh_token = token_data.get('refresh_token')
                         existing_account.token_expires_at = expires_at
@@ -509,17 +509,18 @@ def tiktok_callback():
                         tiktok_account = existing_account
                     else:
                         logger.info("Creating new TikTok account")
-                        # Create new TikTok account
+                        # Create new TikTok account with basic fields only
+                        # Username not available with basic scope, use display_name
                         tiktok_account = TikTokAccount(
                             user_id=auth_user_id,
                             tiktok_user_id=tiktok_user['open_id'],
-                            username=tiktok_user.get('username', ''),
+                            username=tiktok_user.get('display_name', 'TikTok User'),  # Use display_name as username
                             display_name=tiktok_user.get('display_name', ''),
                             avatar_url=tiktok_user.get('avatar_url', ''),
-                            follower_count=tiktok_user.get('follower_count', 0),
-                            following_count=tiktok_user.get('following_count', 0),
-                            likes_count=tiktok_user.get('likes_count', 0),
-                            video_count=tiktok_user.get('video_count', 0),
+                            follower_count=0,  # Stats not available with basic scope
+                            following_count=0,
+                            likes_count=0,
+                            video_count=0,
                             access_token=token_data['access_token'],
                             refresh_token=token_data.get('refresh_token'),
                             token_expires_at=expires_at,
