@@ -685,33 +685,41 @@ def switch_tiktok_account(account_id):
 @app.route('/api/accounts/<int:account_id>', methods=['DELETE'])
 @login_required
 def delete_tiktok_account(account_id):
-    """Remove a TikTok account (soft delete) and revoke access"""
+    """Remove a TikTok account completely from database and revoke access"""
     user_id = current_user.id
     account = TikTokAccount.query.filter_by(id=account_id, user_id=user_id).first()
     
     if not account:
         return jsonify({'error': 'Account not found'}), 404
     
+    # Store username for logging
+    username = account.username
+    
     # Revoke access token from TikTok before deletion
     if account.access_token:
         revoked = revoke_tiktok_token(account.access_token)
         if revoked:
-            logger.info(f"Successfully revoked TikTok access for account {account.username}")
+            logger.info(f"Successfully revoked TikTok access for account {username}")
         else:
-            logger.warning(f"Failed to revoke TikTok access for account {account.username}")
+            logger.warning(f"Failed to revoke TikTok access for account {username}")
     
-    # Soft delete the account
-    account.is_active = False
+    # Check if this was the current account before deletion
+    was_current = session.get('current_tiktok_account_id') == account_id
+    
+    # Hard delete the account from database
+    db.session.delete(account)
     db.session.commit()
     
-    # Check if this was the last active account
-    active_accounts = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).count()
+    logger.info(f"Permanently deleted TikTok account {username} from database")
+    
+    # Check if user has any remaining accounts
+    remaining_accounts = TikTokAccount.query.filter_by(user_id=user_id).count()
     
     # If this was the current account, try to switch to another one
-    if session.get('current_tiktok_account_id') == account_id:
-        if active_accounts > 0:
-            # Switch to another active account
-            other_account = TikTokAccount.query.filter_by(user_id=user_id, is_active=True).first()
+    if was_current:
+        if remaining_accounts > 0:
+            # Switch to another account
+            other_account = TikTokAccount.query.filter_by(user_id=user_id).first()
             session['current_tiktok_account_id'] = other_account.id
             session['tiktok_access_token'] = other_account.access_token
         else:
@@ -720,13 +728,13 @@ def delete_tiktok_account(account_id):
             session.pop('tiktok_access_token', None)
     
     message = 'Account removed successfully'
-    if active_accounts == 0:
+    if remaining_accounts == 0:
         message += '. You now have no connected TikTok accounts.'
     
     return jsonify({
         'success': True, 
         'message': message,
-        'accounts_remaining': active_accounts
+        'accounts_remaining': remaining_accounts
     })
 
 
