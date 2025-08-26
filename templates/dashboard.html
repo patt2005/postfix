@@ -345,6 +345,17 @@
             font-style: italic;
         }
         
+        /* Style for disabled privacy options */
+        select#privacy option:disabled {
+            color: #999 !important;
+            background-color: #f5f5f5;
+            cursor: not-allowed !important;
+        }
+        
+        select#privacy option:disabled:hover {
+            background-color: #f5f5f5 !important;
+        }
+        
         .interaction-controls {
             background: #f9f9f9;
             border-radius: 8px;
@@ -498,14 +509,23 @@
             background: #fff3cd;
             border: 1px solid #ffc107;
             border-radius: 6px;
-            padding: 10px;
+            padding: 12px;
             margin-top: 10px;
-            font-size: 13px;
+            font-size: 14px;
             display: none;
+            font-weight: 500;
+            color: #856404;
         }
         
         .commercial-warning.active {
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .commercial-warning i {
+            color: #ff9800;
+            font-size: 16px;
         }
         
         .video-preview-section {
@@ -800,8 +820,8 @@
                     <div class="privacy-note" style="color: #ff0050; font-weight: 500;">
                         <i class="fas fa-exclamation-circle"></i> You must manually select a privacy level - no default is set
                     </div>
-                    <div id="brandedContentPrivacyNote" class="privacy-note" style="background: #fff3cd; border: 1px solid #ffc107; padding: 8px; border-radius: 5px; margin-top: 8px; display: none;">
-                        <i class="fas fa-info-circle" style="color: #ff9800;"></i> <strong>Note:</strong> Branded content can only be set to Public or Friends visibility. Private option is disabled.
+                    <div id="brandedContentPrivacyNote" class="privacy-note" style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; margin-top: 8px; display: none;">
+                        <i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i> <strong>Important:</strong> Branded content can only be configured with visibility as Public or Friends. Private visibility is not available for branded content.
                     </div>
                 </div>
 
@@ -898,13 +918,18 @@
                         </div>
                         
                         <div id="commercialWarning" class="commercial-warning">
-                            <i class="fas fa-info-circle"></i>
+                            <i class="fas fa-tag"></i>
                             <span id="commercialWarningText">Your video will be labeled accordingly</span>
                         </div>
                         
                         <div id="commercialSelectionError" class="commercial-warning" style="background: #ffebee; border-color: #ef5350; color: #c62828; display: none;">
                             <i class="fas fa-exclamation-circle"></i>
                             You need to indicate if your content promotes yourself, a third party, or both.
+                        </div>
+                        
+                        <div id="brandedContentDisabledNote" class="commercial-warning" style="background: #e3f2fd; border: 1px solid #2196F3; color: #1565c0; display: none;">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Note:</strong> Branded Content option is disabled because Private visibility is selected. Change privacy to Public or Friends to enable Branded Content.
                         </div>
                     </div>
                 </div>
@@ -967,6 +992,14 @@
             setupEventListeners();  // Setup listeners first to auto-select account
             // The account picker change event will call fetchCreatorInfo and fetchUserProfile
             updateConsentDeclaration();  // Initialize consent declaration
+            
+            // Check if branded content is checked on page load and update privacy restrictions
+            const brandedContent = document.getElementById('brandedContent');
+            const commercialToggle = document.getElementById('commercialToggle');
+            if (commercialToggle?.checked && brandedContent?.checked) {
+                updatePrivacyDropdownRestrictions();
+            }
+            
             updateSubmitButton();
         });
 
@@ -1036,6 +1069,9 @@
                     this.style.borderColor = '#ddd'; // Reset border when selected
                 }
             }, { once: true });
+            
+            // Check initial privacy restrictions for branded content
+            checkBrandedContentAvailability();
         }
         
         // Legacy function for backward compatibility
@@ -1296,21 +1332,96 @@
                 if (commercialToggle.checked) {
                     options.classList.add('active');
                     updateCommercialWarning();
+                    // Check privacy restrictions when commercial content is enabled
+                    checkPrivacyRestrictions();
+                    // Update privacy dropdown if branded content is already checked
+                    updatePrivacyDropdownRestrictions();
                 } else {
                     options.classList.remove('active');
                     document.getElementById('yourBrand').checked = false;
                     document.getElementById('brandedContent').checked = false;
+                    // Remove privacy restrictions when commercial content is disabled
+                    checkPrivacyRestrictions();
+                    updatePrivacyDropdownRestrictions();
                 }
                 updateSubmitButton();
             });
 
             // Commercial content options
             document.getElementById('yourBrand').addEventListener('change', updateCommercialWarning);
-            document.getElementById('brandedContent').addEventListener('change', updateCommercialWarning);
+            document.getElementById('brandedContent').addEventListener('change', () => {
+                updateCommercialWarning();
+                // When branded content is checked/unchecked, update privacy restrictions
+                checkPrivacyRestrictions();
+                // Update privacy dropdown options based on branded content selection
+                updatePrivacyDropdownRestrictions();
+            });
 
             // Privacy level change
-            document.getElementById('privacy').addEventListener('change', () => {
+            document.getElementById('privacy').addEventListener('change', (e) => {
+                const brandedContent = document.getElementById('brandedContent').checked;
+                const brandedContentCheckbox = document.getElementById('brandedContent');
+                const brandedContentOption = brandedContentCheckbox.closest('.commercial-option');
+                const commercialToggle = document.getElementById('commercialToggle').checked;
+                
+                // Prevent selecting Private when Branded Content is active
+                if (commercialToggle && brandedContent && e.target.value === 'SELF_ONLY') {
+                    e.preventDefault();
+                    // Reset to previous value or Public
+                    const publicOption = Array.from(e.target.options).find(opt => opt.value === 'PUBLIC_TO_EVERYONE');
+                    if (publicOption && !publicOption.disabled) {
+                        e.target.value = 'PUBLIC_TO_EVERYONE';
+                    } else {
+                        const friendsOption = Array.from(e.target.options).find(opt => opt.value === 'MUTUAL_FOLLOW_FRIENDS');
+                        if (friendsOption && !friendsOption.disabled) {
+                            e.target.value = 'MUTUAL_FOLLOW_FRIENDS';
+                        }
+                    }
+                    showNotification('Branded content cannot be set to Private visibility. Please choose Public or Friends.', 'warning', 5000);
+                    return;
+                }
+                
+                // Disable/Enable Branded Content based on privacy selection
+                if (e.target.value === 'SELF_ONLY') {
+                    // Private selected - disable Branded Content
+                    brandedContentCheckbox.disabled = true;
+                    brandedContentCheckbox.checked = false; // Uncheck if it was checked
+                    brandedContentOption.style.opacity = '0.5';
+                    brandedContentOption.title = 'Branded content cannot be used with Private visibility';
+                    
+                    // Update the description to show restriction
+                    const description = brandedContentOption.querySelector('.commercial-option-description');
+                    if (description && !description.innerHTML.includes('(Not available')) {
+                        description.innerHTML += '<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>';
+                    }
+                    
+                    // Show the disabled note if commercial toggle is on
+                    const brandedContentDisabledNote = document.getElementById('brandedContentDisabledNote');
+                    if (commercialToggle && brandedContentDisabledNote) {
+                        brandedContentDisabledNote.style.display = 'flex';
+                        showNotification('Branded Content option has been disabled. Visibility for branded content cannot be private.', 'info', 5000);
+                    }
+                } else {
+                    // Public or Friends selected - enable Branded Content
+                    brandedContentCheckbox.disabled = false;
+                    brandedContentOption.style.opacity = '1';
+                    brandedContentOption.title = '';
+                    
+                    // Remove the restriction message
+                    const description = brandedContentOption.querySelector('.commercial-option-description');
+                    if (description && description.innerHTML.includes('(Not available')) {
+                        description.innerHTML = description.innerHTML.replace('<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>', '');
+                    }
+                    
+                    // Hide the disabled note
+                    const brandedContentDisabledNote = document.getElementById('brandedContentDisabledNote');
+                    if (brandedContentDisabledNote) {
+                        brandedContentDisabledNote.style.display = 'none';
+                    }
+                }
+                
                 checkPrivacyRestrictions();
+                updateCommercialWarning();
                 updateSubmitButton();
             });
 
@@ -1430,6 +1541,7 @@
                     warning.style.display = 'none';
                 } else {
                     selectionError.style.display = 'none';
+                    warning.style.display = 'flex';  // Use flex display for proper alignment
                     warning.classList.add('active');
                     
                     // Apply the exact requirements from the API spec
@@ -1446,6 +1558,7 @@
                 }
             } else {
                 // Commercial toggle is off - hide warnings and reset checkboxes
+                warning.style.display = 'none';
                 warning.classList.remove('active');
                 selectionError.style.display = 'none';
             }
@@ -1482,6 +1595,60 @@
             }
         }
 
+        // Update privacy dropdown restrictions based on branded content selection
+        function updatePrivacyDropdownRestrictions() {
+            const brandedContent = document.getElementById('brandedContent').checked;
+            const commercialToggle = document.getElementById('commercialToggle').checked;
+            const privacySelect = document.getElementById('privacy');
+            const brandedContentNote = document.getElementById('brandedContentPrivacyNote');
+            
+            if (commercialToggle && brandedContent) {
+                // Disable Private option in dropdown when Branded Content is checked
+                Array.from(privacySelect.options).forEach(option => {
+                    if (option.value === 'SELF_ONLY') {
+                        option.disabled = true;
+                        option.title = 'Branded content visibility cannot be set to private';
+                        option.setAttribute('data-tooltip', 'Branded content visibility cannot be set to private');
+                        option.style.color = '#999';
+                        option.style.textDecoration = 'line-through';
+                        option.style.cursor = 'not-allowed';
+                        option.style.backgroundColor = '#f5f5f5';
+                        
+                        // Add visual indication if not already added
+                        if (option.textContent && !option.textContent.includes('(Not available')) {
+                            option.textContent = option.textContent + ' (Not available for branded content)';
+                        }
+                    }
+                });
+                
+                // Show privacy restriction note
+                if (brandedContentNote) {
+                    brandedContentNote.style.display = 'block';
+                }
+            } else {
+                // Re-enable Private option when Branded Content is not checked
+                Array.from(privacySelect.options).forEach(option => {
+                    if (option.value === 'SELF_ONLY') {
+                        option.disabled = false;
+                        option.title = '';
+                        option.style.color = '';
+                        option.style.textDecoration = '';
+                        option.style.cursor = '';
+                        
+                        // Remove visual indication
+                        if (option.textContent && option.textContent.includes('(Not available')) {
+                            option.textContent = option.textContent.replace(' (Not available for branded content)', '');
+                        }
+                    }
+                });
+                
+                // Hide privacy restriction note if no branded content
+                if (brandedContentNote && !brandedContent) {
+                    brandedContentNote.style.display = 'none';
+                }
+            }
+        }
+        
         // Check privacy restrictions for branded content
         function checkPrivacyRestrictions() {
             const brandedContent = document.getElementById('brandedContent').checked;
@@ -1490,6 +1657,9 @@
             const brandedContentNote = document.getElementById('brandedContentPrivacyNote');
 
             if (commercialToggle && brandedContent) {
+                // Update privacy dropdown restrictions
+                updatePrivacyDropdownRestrictions();
+                
                 // Show the branded content privacy note
                 if (brandedContentNote) {
                     brandedContentNote.style.display = 'block';
@@ -1499,27 +1669,41 @@
                     if (option.value === 'SELF_ONLY') {
                         option.disabled = true;
                         option.title = 'Branded content visibility cannot be set to private';
+                        option.style.color = '#999';
+                        option.style.textDecoration = 'line-through';
+                        option.style.cursor = 'not-allowed';
                         
                         // Add visual indication
                         if (option.textContent && !option.textContent.includes('(Not available')) {
                             option.textContent = option.textContent + ' (Not available for branded content)';
                         }
                         
-                        // If currently selected, automatically switch to public
+                        // If Private is currently selected (not null/empty), automatically switch
                         if (privacySelect.value === 'SELF_ONLY') {
                             // Try to select PUBLIC_TO_EVERYONE first, then fallback to first enabled option
                             const publicOption = Array.from(privacySelect.options).find(opt => opt.value === 'PUBLIC_TO_EVERYONE');
                             if (publicOption && !publicOption.disabled) {
                                 privacySelect.value = 'PUBLIC_TO_EVERYONE';
-                                showStatus('Privacy automatically changed to Public as branded content cannot be private', 'info');
+                                showNotification('Privacy automatically changed to Public. Branded content cannot be set to Private visibility.', 'warning', 5000);
                             } else {
-                                // Fallback to first available option
-                                const firstAvailable = Array.from(privacySelect.options).find(opt => opt.value && !opt.disabled);
-                                if (firstAvailable) {
-                                    privacySelect.value = firstAvailable.value;
-                                    showStatus('Privacy changed as branded content cannot be private', 'info');
+                                // Fallback to MUTUAL_FOLLOW_FRIENDS (Friends) if Public is not available
+                                const friendsOption = Array.from(privacySelect.options).find(opt => opt.value === 'MUTUAL_FOLLOW_FRIENDS');
+                                if (friendsOption && !friendsOption.disabled) {
+                                    privacySelect.value = 'MUTUAL_FOLLOW_FRIENDS';
+                                    showNotification('Privacy automatically changed to Friends. Branded content cannot be set to Private visibility.', 'warning', 5000);
+                                } else {
+                                    // Fallback to first available option
+                                    const firstAvailable = Array.from(privacySelect.options).find(opt => opt.value && !opt.disabled);
+                                    if (firstAvailable) {
+                                        privacySelect.value = firstAvailable.value;
+                                        showNotification('Privacy changed. Branded content cannot be set to Private visibility.', 'warning', 5000);
+                                    }
                                 }
                             }
+                        } else if (!privacySelect.value || privacySelect.value === '') {
+                            // Privacy is null/not selected - just ensure Private option stays disabled
+                            // The option is already disabled by the code above, just show informative message
+                            console.log('Privacy not selected yet. Private option disabled for branded content.');
                         }
                     }
                 });
@@ -1534,6 +1718,8 @@
                     if (option.value === 'SELF_ONLY') {
                         option.disabled = false;
                         option.title = '';
+                        option.style.color = '';
+                        option.style.textDecoration = '';
                         // Remove the "Not available" text if it was added
                         if (option.textContent && option.textContent.includes('(Not available')) {
                             option.textContent = option.textContent.replace(' (Not available for branded content)', '');
@@ -1977,6 +2163,50 @@
             }
             
             showNotification(message, 'error');
+        }
+        
+        // Check if Branded Content should be disabled based on privacy
+        function checkBrandedContentAvailability() {
+            const privacySelect = document.getElementById('privacy');
+            const brandedContentCheckbox = document.getElementById('brandedContent');
+            const brandedContentOption = brandedContentCheckbox?.closest('.commercial-option');
+            const brandedContentDisabledNote = document.getElementById('brandedContentDisabledNote');
+            const commercialToggle = document.getElementById('commercialToggle');
+            
+            if (!brandedContentCheckbox || !brandedContentOption) return;
+            
+            if (privacySelect.value === 'SELF_ONLY') {
+                // Private selected - disable Branded Content
+                brandedContentCheckbox.disabled = true;
+                brandedContentCheckbox.checked = false;
+                brandedContentOption.style.opacity = '0.5';
+                brandedContentOption.title = 'Visibility for branded content cannot be private';
+                
+                const description = brandedContentOption.querySelector('.commercial-option-description');
+                if (description && !description.innerHTML.includes('(Not available')) {
+                    description.innerHTML += '<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>';
+                }
+                
+                // Show the disabled note if commercial section is active
+                if (commercialToggle?.checked && brandedContentDisabledNote) {
+                    brandedContentDisabledNote.style.display = 'flex';
+                }
+            } else {
+                // Enable Branded Content for non-private visibility
+                brandedContentCheckbox.disabled = false;
+                brandedContentOption.style.opacity = '1';
+                brandedContentOption.title = '';
+                
+                const description = brandedContentOption.querySelector('.commercial-option-description');
+                if (description && description.innerHTML.includes('(Not available')) {
+                    description.innerHTML = description.innerHTML.replace('<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>', '');
+                }
+                
+                // Hide the disabled note
+                if (brandedContentDisabledNote) {
+                    brandedContentDisabledNote.style.display = 'none';
+                }
+            }
         }
         
         // Format large numbers
