@@ -95,6 +95,30 @@
         .btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            position: relative;
+        }
+        
+        .btn-primary:disabled:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            max-width: 300px;
+            z-index: 1000;
+            pointer-events: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
         
         .btn-secondary {
@@ -466,10 +490,22 @@
             padding: 15px;
             background: white;
             border-radius: 8px;
+            transition: all 0.3s ease;
         }
         
         .commercial-options.active {
             display: block;
+        }
+        
+        .commercial-options.error {
+            border: 2px solid #dc3545 !important;
+            animation: shake 0.5s ease;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
         }
         
         .commercial-option {
@@ -1428,6 +1464,41 @@
             // User consent
             document.getElementById('userConsent').addEventListener('change', updateSubmitButton);
 
+            // Submit button hover - show notification for commercial content error
+            const submitBtn = document.getElementById('submitBtn');
+            let hoverNotificationShown = false;
+            submitBtn.addEventListener('mouseenter', () => {
+                if (submitBtn.disabled) {
+                    const commercialToggle = document.getElementById('commercialToggle').checked;
+                    const yourBrand = document.getElementById('yourBrand').checked;
+                    const brandedContent = document.getElementById('brandedContent').checked;
+                    
+                    // Show notification specifically for commercial content not selected
+                    if (commercialToggle && !yourBrand && !brandedContent && !hoverNotificationShown) {
+                        showNotification('You need to indicate if your content promotes yourself, a third party, or both.', 'warning', 4000);
+                        hoverNotificationShown = true;
+                        
+                        // Scroll to and highlight the commercial options section
+                        const commercialSection = document.querySelector('.commercial-content-section');
+                        if (commercialSection) {
+                            commercialSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            commercialSection.style.transition = 'box-shadow 0.3s ease';
+                            commercialSection.style.boxShadow = '0 0 20px rgba(255, 193, 7, 0.5)';
+                            setTimeout(() => {
+                                commercialSection.style.boxShadow = '';
+                            }, 2000);
+                        }
+                    }
+                }
+            });
+            
+            submitBtn.addEventListener('mouseleave', () => {
+                // Reset the flag when mouse leaves
+                setTimeout(() => {
+                    hoverNotificationShown = false;
+                }, 1000);
+            });
+
             // Form submission
             document.getElementById('postForm').addEventListener('submit', handleFormSubmit);
         }
@@ -1547,13 +1618,13 @@
                     // Apply the exact requirements from the API spec
                     if (yourBrand && brandedContent) {
                         // Both selected - show "Paid partnership"
-                        warningText.textContent = `Your ${contentType} will be labeled as "Paid partnership"`;
+                        warningText.textContent = `Your photo/video will be labeled as "Paid partnership"`;
                     } else if (yourBrand) {
                         // Only Your Brand selected - show "Promotional content"
-                        warningText.textContent = `Your ${contentType} will be labeled as "Promotional content"`;
+                        warningText.textContent = `Your photo/video will be labeled as "Promotional content"`;
                     } else if (brandedContent) {
                         // Only Branded Content selected - show "Paid partnership"
-                        warningText.textContent = `Your ${contentType} will be labeled as "Paid partnership"`;
+                        warningText.textContent = `Your photo/video will be labeled as "Paid partnership"`;
                     }
                 }
             } else {
@@ -1781,7 +1852,7 @@
                 const brandedContent = document.getElementById('brandedContent').checked;
                 if (!yourBrand && !brandedContent) {
                     canSubmit = false;
-                    reasons.push('Commercial content type not selected');
+                    reasons.push('You need to indicate if your content promotes yourself, a third party, or both');
                 }
             }
 
@@ -1793,7 +1864,22 @@
 
             submitBtn.disabled = !canSubmit;
             if (reasons.length > 0) {
-                submitBtn.title = 'Cannot post: ' + reasons.join(', ');
+                // Special case for commercial content disclosure
+                if (document.getElementById('commercialToggle').checked && 
+                    !document.getElementById('yourBrand').checked && 
+                    !document.getElementById('brandedContent').checked) {
+                    submitBtn.title = 'You need to indicate if your content promotes yourself, a third party, or both.';
+                    // Also highlight the commercial options section
+                    const commercialOptions = document.getElementById('commercialOptions');
+                    if (commercialOptions && commercialOptions.classList.contains('active')) {
+                        commercialOptions.style.borderColor = '#ff0050';
+                        setTimeout(() => {
+                            commercialOptions.style.borderColor = '';
+                        }, 3000);
+                    }
+                } else {
+                    submitBtn.title = 'Cannot post: ' + reasons.join(', ');
+                }
             } else {
                 submitBtn.title = 'Ready to post';
             }
@@ -1803,6 +1889,35 @@
         async function handleFormSubmit(e) {
             e.preventDefault();
 
+            // Validate commercial content selection first
+            const commercialToggle = document.getElementById('commercialToggle').checked;
+            const yourBrand = document.getElementById('yourBrand').checked;
+            const brandedContent = document.getElementById('brandedContent').checked;
+            
+            if (commercialToggle && !yourBrand && !brandedContent) {
+                showNotification('You need to indicate if your content promotes yourself, a third party, or both.', 'error', 5000);
+                
+                // Highlight and scroll to the commercial section
+                const commercialSection = document.querySelector('.commercial-content-section');
+                if (commercialSection) {
+                    commercialSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    commercialSection.style.transition = 'all 0.3s ease';
+                    commercialSection.style.border = '2px solid #dc3545';
+                    commercialSection.style.boxShadow = '0 0 15px rgba(220, 53, 69, 0.3)';
+                    
+                    // Show the selection error message
+                    const selectionError = document.getElementById('commercialSelectionError');
+                    if (selectionError) {
+                        selectionError.style.display = 'flex';
+                    }
+                    
+                    setTimeout(() => {
+                        commercialSection.style.border = '2px solid #ffc107';
+                        commercialSection.style.boxShadow = '';
+                    }, 3000);
+                }
+                return;
+            }
 
             // Validate video duration before posting using account-specific limit
             const accountId = currentAccount?.id;
