@@ -1359,6 +1359,9 @@
                 } else {
                     countElement.parentElement.classList.remove('warning', 'error');
                 }
+                
+                // Update submit button state when caption changes
+                updateSubmitButton();
             });
 
             // Commercial content toggle
