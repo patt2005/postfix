@@ -87,26 +87,93 @@ if (contactForm) {
     });
 }
 
-// Notification system
-function showNotification(message, type) {
+// Enhanced notification system for session expired and API errors
+function showNotification(message, type, duration = 3000) {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.textContent = message;
     
-    // Add styles
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '×';
+    closeButton.style.cssText = `
+        background: none;
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        margin-left: 10px;
+        padding: 0;
+        opacity: 0.7;
+        float: right;
+    `;
+    closeButton.onclick = () => dismissNotification(notification);
+    
+    // Create message container
+    const messageContainer = document.createElement('div');
+    messageContainer.style.display = 'flex';
+    messageContainer.style.alignItems = 'center';
+    messageContainer.style.justifyContent = 'space-between';
+    
+    const messageText = document.createElement('span');
+    messageText.textContent = message;
+    messageText.style.flex = '1';
+    messageText.style.paddingRight = '10px';
+    
+    messageContainer.appendChild(messageText);
+    messageContainer.appendChild(closeButton);
+    notification.appendChild(messageContainer);
+    
+    // Enhanced styles with better colors and session error styling
+    let backgroundColor = '#dc3545'; // Default error
+    let borderColor = '#c82333';
+    
+    switch(type) {
+        case 'success':
+            backgroundColor = '#28a745';
+            borderColor = '#1e7e34';
+            break;
+        case 'warning':
+            backgroundColor = '#ffc107';
+            borderColor = '#e0a800';
+            break;
+        case 'info':
+            backgroundColor = '#17a2b8';
+            borderColor = '#117a8b';
+            break;
+        case 'session-expired':
+            backgroundColor = '#fd7e14'; // Orange for session issues
+            borderColor = '#e55100';
+            break;
+        case 'error':
+        default:
+            backgroundColor = '#dc3545';
+            borderColor = '#c82333';
+    }
+    
     notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        padding: 15px 25px;
-        border-radius: 5px;
+        max-width: 400px;
+        padding: 15px;
+        border-radius: 8px;
         color: white;
         font-weight: 500;
         z-index: 10000;
         transform: translateX(100%);
         transition: transform 0.3s ease;
-        ${type === 'success' ? 'background: #28a745;' : 'background: #dc3545;'}
+        background: ${backgroundColor};
+        border-left: 4px solid ${borderColor};
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 14px;
+        line-height: 1.4;
     `;
+    
+    // Stack notifications if multiple exist
+    const existingNotifications = document.querySelectorAll('.notification');
+    const offset = existingNotifications.length * 80;
+    notification.style.top = `${20 + offset}px`;
     
     document.body.appendChild(notification);
     
@@ -115,13 +182,86 @@ function showNotification(message, type) {
         notification.style.transform = 'translateX(0)';
     }, 100);
     
-    // Remove after 3 seconds
+    // Auto remove after specified duration
+    const autoRemoveTimeout = setTimeout(() => {
+        dismissNotification(notification);
+    }, duration);
+    
+    // Store timeout on element so it can be cancelled if manually dismissed
+    notification._autoRemoveTimeout = autoRemoveTimeout;
+}
+
+// Function to dismiss notification
+function dismissNotification(notification) {
+    // Cancel auto-remove timeout if exists
+    if (notification._autoRemoveTimeout) {
+        clearTimeout(notification._autoRemoveTimeout);
+    }
+    
+    notification.style.transform = 'translateX(100%)';
     setTimeout(() => {
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
-    }, 3000);
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+        // Reposition remaining notifications
+        repositionNotifications();
+    }, 300);
+}
+
+// Function to reposition remaining notifications after one is dismissed
+function repositionNotifications() {
+    const notifications = document.querySelectorAll('.notification');
+    notifications.forEach((notification, index) => {
+        notification.style.top = `${20 + index * 80}px`;
+    });
+}
+
+// Handle session expired errors specifically
+function handleSessionExpired(errorData, statusCode) {
+    console.warn('Session expired or unauthorized access detected');
+    
+    let message = 'Your session has expired. Please reconnect your TikTok account.';
+    if (errorData.error && errorData.error.includes('token')) {
+        message = 'Your TikTok access token has expired. Please reconnect your account.';
+    } else if (errorData.error && errorData.error.includes('refresh')) {
+        message = 'Unable to refresh your session. Please reconnect your TikTok account.';
+    }
+    
+    showNotification(message, 'session-expired', 8000); // Show for 8 seconds
+    
+    // Optionally redirect to reconnect after a delay
+    setTimeout(() => {
+        if (confirm('Your TikTok session has expired. Would you like to reconnect now?')) {
+            window.location.href = '/auth/tiktok';
+        }
+    }, 2000);
+}
+
+// Handle general API errors
+function handleApiError(statusCode, errorData, defaultMessage) {
+    console.error(`API Error ${statusCode}:`, errorData);
+    
+    let message = defaultMessage;
+    
+    switch (statusCode) {
+        case 429:
+            message = 'Too many requests. Please wait a moment and try again.';
+            break;
+        case 503:
+            message = 'TikTok service is temporarily unavailable. Please try again later.';
+            break;
+        case 500:
+            message = 'Server error occurred. Please try again later.';
+            break;
+        default:
+            if (errorData.error) {
+                message = errorData.error;
+            } else if (errorData.details) {
+                message = errorData.details;
+            }
+    }
+    
+    showNotification(message, 'error');
 }
 
 // Modal functionality

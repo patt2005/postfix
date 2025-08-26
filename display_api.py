@@ -37,6 +37,26 @@ def get_user_profile(account_id):
         if not account:
             return jsonify({'error': 'Account not found'}), 404
         
+        # Check if token is expired and try to refresh if needed
+        if account.token_expires_at and account.token_expires_at < datetime.utcnow():
+            logger.warning(f"Access token expired for account {account.username}, attempting refresh")
+            from app import refresh_tiktok_token  # Import refresh function
+            
+            if account.refresh_token:
+                refreshed = refresh_tiktok_token(account)
+                if not refreshed:
+                    return jsonify({
+                        'error': 'Your TikTok session has expired and could not be renewed. Please reconnect your account.',
+                        'error_type': 'refresh_failed',
+                        'requires_reauth': True
+                    }), 401
+            else:
+                return jsonify({
+                    'error': 'Your TikTok session has expired. Please reconnect your account.',
+                    'error_type': 'no_refresh_token',
+                    'requires_reauth': True
+                }), 401
+        
         # Use creator_info/query endpoint which works with video.publish scope
         headers = {
             'Authorization': f'Bearer {account.access_token}',
@@ -98,9 +118,29 @@ def get_user_profile(account_id):
         else:
             error_data = response.json()
             logger.error(f"Failed to fetch user profile: {error_data}")
+            
+            # Handle specific error types
+            if response.status_code == 401:
+                # Token expired or invalid
+                error_code = error_data.get('error', {}).get('code', '')
+                if 'token' in error_code.lower() or 'unauthorized' in error_code.lower():
+                    return jsonify({
+                        'error': 'Your TikTok session has expired. Please reconnect your account.',
+                        'error_type': 'session_expired',
+                        'requires_reauth': True
+                    }), 401
+            elif response.status_code == 403:
+                # Forbidden - potentially refresh token expired
+                return jsonify({
+                    'error': 'Access denied. Your TikTok session may have expired.',
+                    'error_type': 'access_denied',
+                    'requires_reauth': True
+                }), 403
+            
             return jsonify({
                 'error': 'Failed to fetch profile',
-                'details': error_data.get('error', {}).get('message')
+                'details': error_data.get('error', {}).get('message'),
+                'error_code': error_data.get('error', {}).get('code')
             }), response.status_code
             
     except Exception as e:

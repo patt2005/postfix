@@ -1232,9 +1232,13 @@
                 refreshAccountBtn.addEventListener('click', async () => {
                     if (!currentAccount) return;
                     
-                    showStatus('Refreshing account information...', 'processing');
-                    await fetchUserProfile();
-                    showStatus('Account information updated!', 'success');
+                    showNotification('Refreshing account information...', 'info', 5000);
+                    try {
+                        await fetchUserProfile();
+                        showNotification('Account information updated successfully!', 'success');
+                    } catch (error) {
+                        showNotification('Failed to refresh account information', 'error');
+                    }
                 });
             }
             
@@ -1887,6 +1891,23 @@
                 const response = await fetch(`/api/user/profile/${accountId}`);
                 const data = await response.json();
                 
+                // Handle session expired or refresh token errors
+                if (response.status === 401 || response.status === 403) {
+                    // Check if it's specifically a session/token error
+                    if (data.error_type && (data.error_type === 'session_expired' || data.error_type === 'refresh_failed' || data.error_type === 'no_refresh_token')) {
+                        handleSessionExpired(data, response.status);
+                    } else {
+                        handleApiError(response.status, data, 'Unauthorized access');
+                    }
+                    return;
+                }
+                
+                // Handle other API errors
+                if (!response.ok) {
+                    handleApiError(response.status, data, 'Failed to load profile information');
+                    return;
+                }
+                
                 if (response.ok && data.success) {
                     // Store account-specific creator info
                     accountCreatorInfo[accountId] = {
@@ -1923,9 +1944,40 @@
                 }
             } catch (error) {
                 console.error('Error fetching user profile:', error);
+                showNotification('Network error: Unable to load profile information', 'error');
             }
         }
         
+        
+        // Handle session expired errors (use functions from static/script.js)
+        // This is a duplicate but needed for dashboard-specific handling
+        
+        // Handle general API errors
+        function handleApiError(statusCode, errorData, defaultMessage) {
+            console.error(`API Error ${statusCode}:`, errorData);
+            
+            let message = defaultMessage;
+            
+            switch (statusCode) {
+                case 429:
+                    message = 'Too many requests. Please wait a moment and try again.';
+                    break;
+                case 503:
+                    message = 'TikTok service is temporarily unavailable. Please try again later.';
+                    break;
+                case 500:
+                    message = 'Server error occurred. Please try again later.';
+                    break;
+                default:
+                    if (errorData.error) {
+                        message = errorData.error;
+                    } else if (errorData.details) {
+                        message = errorData.details;
+                    }
+            }
+            
+            showNotification(message, 'error');
+        }
         
         // Format large numbers
         function formatNumber(num) {
