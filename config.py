@@ -44,7 +44,7 @@ class TikTokConfig:
     @classmethod
     def is_in_review_mode(cls):
         """Check if app is in review mode"""
-        return cls.REVIEW_MODE and cls.REVIEW_APPROVED_DATE is None
+        return False
     
     @classmethod
     def get_allowed_privacy_levels(cls):

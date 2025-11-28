@@ -1133,16 +1133,37 @@ def get_creator_info():
 @login_required
 def post_video():
     try:
-        data = request.get_json()
-        
-        # REVIEW MODE CHECK
+        video_path = None
+        if request.files and 'video' in request.files:
+            # Handle file upload
+            file = request.files['video']
+
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                timestamp = str(int(time.time()))
+                filename = f"{timestamp}_{filename}"
+                video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(video_path)
+                logger.info(f"Video file saved to: {video_path}")
+            else:
+                return jsonify({'error': 'Invalid file type'}), 400
+
+            # Get metadata from form data
+            metadata_str = request.form.get('metadata', '{}')
+            data = json.loads(metadata_str)
+        else:
+            # Regular JSON request
+            data = request.get_json()
+    
         if TikTokConfig.is_in_review_mode():
             privacy_level = data.get('privacy_level')
             if privacy_level and privacy_level != 'SELF_ONLY':
                 logger.warning(f"Review mode: Forcing privacy to SELF_ONLY (was: {privacy_level})")
                 data['privacy_level'] = 'SELF_ONLY'
 
-        # Get the target account from the request
         tiktok_account_id = data.get('tiktok_account_id')
         if not tiktok_account_id:
             return jsonify({'error': 'Missing tiktok_account_id in request'}), 400
@@ -1292,44 +1313,17 @@ def post_video():
                     'error': 'TikTok did not provide upload_url',
                     'response': response_data
                 }), 400
-        
+
+        # Add video_path to response if file was uploaded
+        if video_path:
+            response_data['video_path'] = video_path
+
         return jsonify(response_data)
     except Exception as e:
         logger.error(f"Error initiating video post: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'error': 'Failed to initiate video post', 'message': str(e)}), 500
-
-
-@app.route('/api/post/upload', methods=['POST'])
-@login_required
-def upload_video():
-    if 'video' not in request.files:
-        return jsonify({'error': 'No video file provided'}), 400
-    
-    file = request.files['video']
-    
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        timestamp = str(int(time.time()))
-        filename = f"{timestamp}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        # Get file size
-        file_size = os.path.getsize(filepath)
-        
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'filepath': filepath,
-            'size': file_size
-        })
-    
-    return jsonify({'error': 'Invalid file type'}), 400
 
 
 @app.route('/api/post/upload/chunk', methods=['PUT'])

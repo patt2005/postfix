@@ -1944,6 +1944,48 @@
             }
         }
 
+        // Validate file before upload
+        function validateFile(file) {
+            const errors = [];
+
+            // Check if file exists
+            if (!file) {
+                errors.push('No file selected');
+                return { valid: false, errors };
+            }
+
+            // Check file type
+            const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
+            const allowedExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+
+            if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+                errors.push(`Invalid file type. Allowed types: ${allowedExtensions.join(', ')}`);
+            }
+
+            // Check file size (max 4GB for TikTok)
+            const maxSize = 4 * 1024 * 1024 * 1024; // 4GB in bytes
+            if (file.size > maxSize) {
+                errors.push(`File size exceeds maximum allowed (4GB). Your file: ${formatFileSize(file.size)}`);
+            }
+
+            // Check minimum file size (at least 1KB)
+            const minSize = 1024; // 1KB
+            if (file.size < minSize) {
+                errors.push('File is too small. Minimum size is 1KB');
+            }
+
+            return {
+                valid: errors.length === 0,
+                errors: errors,
+                fileInfo: {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                }
+            };
+        }
+
         // Handle form submission
         async function handleFormSubmit(e) {
             e.preventDefault();
@@ -1978,6 +2020,14 @@
                 return;
             }
 
+            // Validate file before proceeding
+            const fileValidation = validateFile(selectedFile);
+            if (!fileValidation.valid) {
+                showStatus('File validation failed', 'error');
+                alert('File validation failed:\n\n' + fileValidation.errors.join('\n'));
+                return;
+            }
+
             // Validate video duration before posting using account-specific limit
             const accountId = currentAccount?.id;
             const maxDuration = accountCreatorInfo[accountId]?.max_video_duration || 60;
@@ -1987,7 +2037,6 @@
                 return;
             }
 
-            // Validate privacy selection is made (no default allowed)
             const privacyLevel = document.getElementById('privacy').value;
             if (!privacyLevel || privacyLevel === '') {
                 showStatus('You must manually select a privacy level - this is required', 'error');
@@ -1997,72 +2046,56 @@
                 return;
             }
 
-            alert("Privacy level is now " + privacyLevel);
-
             showStatus('Uploading video to TikTok...', 'processing');
 
             try {
-                // First upload the file
-                const uploadFormData = new FormData();
-                uploadFormData.append('video', selectedFile);
 
-                const uploadResponse = await fetch('/api/post/upload', {
-                    method: 'POST',
-                    body: uploadFormData
-                });
-
-                const uploadResult = await uploadResponse.json();
-
-                if (!uploadResponse.ok) {
-                    throw new Error(uploadResult.error || 'Upload failed');
-                }
-
-                // Prepare post data with all required fields
+                // Prepare form data with video file and metadata
                 const formData = new FormData(e.target);
-                const postData = {
-                    tiktok_account_id: currentAccount?.id, // Include account ID if available
+
+                // Add the video file to form data
+                formData.append('video', selectedFile);
+
+                // Add additional metadata as JSON string
+                const metadata = {
+                    tiktok_account_id: currentAccount?.id,
                     source_type: 'FILE_UPLOAD',
-                    video_size: uploadResult.size,
-                    video_duration: videoDurationSeconds, // Include duration for validation
+                    video_size: selectedFile.size,
+                    video_duration: videoDurationSeconds,
                     title: formData.get('title'),
                     privacy_level: formData.get('privacy'),
                     disable_comment: !formData.get('allow_comments'),
                     disable_duet: !formData.get('allow_duet'),
                     disable_stitch: !formData.get('allow_stitch'),
                     video_cover_timestamp_ms: 1000,
-                    user_consent: formData.get('user_consent') // Include user consent
+                    user_consent: formData.get('user_consent')
                 };
+
+                alert("Request body: " + metadata);
 
                 // Add commercial content info if applicable
                 if (formData.get('commercial_content')) {
-                    postData.content_disclosure = {
+                    metadata.content_disclosure = {
                         your_brand: !!formData.get('your_brand'),
                         branded_content: !!formData.get('branded_content')
                     };
                 }
 
+                // Add metadata to form data
+                formData.append('metadata', JSON.stringify(metadata));
+
                 showStatus('Initiating post to TikTok...', 'processing');
 
-                // Use compliant API endpoint that includes all UX requirements
-                const response = await fetch('/api/post/video/compliant', {
+                // Send file with post initiation
+                const response = await fetch('/api/post/video', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(postData)
+                    body: formData
                 });
 
                 const result = await response.json();
 
                 if (response.ok && result.data) {
-                    // Display compliance information if available
-                    if (result.compliance) {
-                        if (result.compliance.creator_nickname) {
-                            showStatus(`Uploading to ${result.compliance.creator_nickname}'s account...`, 'processing');
-                        }
-                    } else {
-                        showStatus('Uploading video chunks to TikTok...', 'processing');
-                    }
+                    showStatus('Uploading video chunks to TikTok...', 'processing');
 
                     // Upload video chunk
                     const chunkResponse = await fetch('/api/post/upload/chunk', {
@@ -2072,7 +2105,7 @@
                         },
                         body: JSON.stringify({
                             upload_url: result.data.upload_url,
-                            video_path: uploadResult.filepath
+                            video_path: result.video_path
                         })
                     });
 
