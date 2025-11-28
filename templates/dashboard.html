@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,13 +16,13 @@
             --gray-light: #f1f1f2;
             --gray-medium: #8a8b91;
         }
-        
+
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background-color: #f5f5f5;
         }
-        
+
         .navbar {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
             padding: 15px 0;
@@ -31,7 +32,7 @@
             z-index: 1000;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .nav-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -40,7 +41,7 @@
             align-items: center;
             padding: 0 20px;
         }
-        
+
         .nav-logo {
             display: flex;
             align-items: center;
@@ -49,7 +50,7 @@
             font-size: 1.5rem;
             font-weight: bold;
         }
-        
+
         .nav-menu {
             display: flex;
             list-style: none;
@@ -57,18 +58,18 @@
             margin: 0;
             padding: 0;
         }
-        
+
         .nav-link {
             color: white;
             text-decoration: none;
             font-weight: 500;
             transition: opacity 0.3s ease;
         }
-        
+
         .nav-link:hover {
             opacity: 0.8;
         }
-        
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -81,23 +82,23 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
             color: white;
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(255, 0, 80, 0.3);
         }
-        
+
         .btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             position: relative;
         }
-        
+
         .btn-primary:disabled:hover::after {
             content: attr(title);
             position: absolute;
@@ -115,29 +116,36 @@
             pointer-events: none;
             animation: fadeIn 0.3s ease;
         }
-        
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(5px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
-        
+
         .btn-secondary {
             background: white;
             color: var(--primary-color);
             border: 2px solid var(--primary-color);
         }
-        
+
         .btn-secondary:hover {
             background: var(--primary-color);
             color: white;
         }
-        
+
         .dashboard-container {
             max-width: 1200px;
             margin: 120px auto 20px;
             padding: 20px;
         }
-        
+
         .creator-info-banner {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 15px;
@@ -146,17 +154,17 @@
             color: white;
             display: none;
         }
-        
+
         .creator-info-banner.active {
             display: block;
         }
-        
+
         .creator-info-content {
             display: flex;
             align-items: center;
             gap: 20px;
         }
-        
+
         .creator-avatar {
             width: 60px;
             height: 60px;
@@ -168,24 +176,24 @@
             font-size: 24px;
             color: var(--primary-color);
         }
-        
+
         .creator-details {
             flex: 1;
         }
-        
+
         .creator-nickname {
             font-size: 1.5rem;
             font-weight: bold;
             margin-bottom: 5px;
         }
-        
+
         .creator-stats {
             display: flex;
             gap: 20px;
             font-size: 14px;
             opacity: 0.9;
         }
-        
+
         .posting-restriction {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 8px;
@@ -193,16 +201,16 @@
             margin-top: 15px;
             display: none;
         }
-        
+
         .posting-restriction.active {
             display: block;
         }
-        
+
         .posting-restriction i {
             color: #ffd700;
             margin-right: 10px;
         }
-        
+
         /* Profile Section Styles */
         .profile-section {
             background: white;
@@ -211,13 +219,13 @@
             margin-bottom: 25px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .profile-header {
             display: flex;
             gap: 25px;
             align-items: start;
         }
-        
+
         .profile-avatar {
             width: 100px;
             height: 100px;
@@ -226,13 +234,13 @@
             background: #f0f0f0;
             position: relative;
         }
-        
+
         .profile-avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        
+
         .avatar-placeholder {
             width: 100%;
             height: 100%;
@@ -242,53 +250,53 @@
             font-size: 40px;
             color: #999;
         }
-        
+
         .profile-info {
             flex: 1;
         }
-        
+
         .profile-name {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 10px;
         }
-        
+
         .profile-name h2 {
             margin: 0;
             font-size: 24px;
         }
-        
+
         .username {
             color: #666;
             font-size: 16px;
         }
-        
+
         .profile-stats {
             display: flex;
             gap: 30px;
             margin-top: 15px;
         }
-        
+
         .stat-item {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        
+
         .stat-value {
             font-size: 20px;
             font-weight: 600;
             color: var(--text-color);
         }
-        
+
         .stat-label {
             font-size: 12px;
             color: #999;
             text-transform: uppercase;
             margin-top: 4px;
         }
-        
+
         /* Videos Section */
         .videos-section {
             background: white;
@@ -296,20 +304,20 @@
             padding: 25px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
         }
-        
+
         .section-header h3 {
             margin: 0;
             color: var(--text-color);
         }
-        
-        
+
+
         .posting-section {
             background: white;
             border-radius: 15px;
@@ -317,23 +325,23 @@
             margin: 30px 0;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: #333;
         }
-        
+
         .form-group label.required::after {
             content: " *";
             color: var(--primary-color);
         }
-        
+
         .form-group input[type="text"],
         .form-group input[type="url"],
         .form-group select,
@@ -345,47 +353,47 @@
             font-size: 14px;
             transition: border-color 0.3s ease;
         }
-        
+
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
             border-color: var(--primary-color);
         }
-        
+
         .form-group textarea {
             resize: vertical;
             min-height: 100px;
         }
-        
+
         .privacy-selector {
             position: relative;
         }
-        
+
         .privacy-note {
             font-size: 12px;
             color: #666;
             margin-top: 5px;
             font-style: italic;
         }
-        
+
         /* Style for disabled privacy options */
         select#privacy option:disabled {
             color: #999 !important;
             background-color: #f5f5f5;
             cursor: not-allowed !important;
         }
-        
+
         select#privacy option:disabled:hover {
             background-color: #f5f5f5 !important;
         }
-        
+
         .interaction-controls {
             background: #f9f9f9;
             border-radius: 8px;
             padding: 15px;
         }
-        
+
         .interaction-item {
             display: flex;
             align-items: center;
@@ -395,24 +403,24 @@
             background: white;
             border-radius: 6px;
         }
-        
+
         .interaction-item:last-child {
             margin-bottom: 0;
         }
-        
+
         .interaction-label {
             display: flex;
             align-items: center;
             gap: 10px;
             flex: 1;
         }
-        
+
         .interaction-toggle {
             position: relative;
             width: 50px;
             height: 26px;
         }
-        
+
         .interaction-toggle input {
             opacity: 0;
             width: 50px;
@@ -424,7 +432,7 @@
             cursor: pointer;
             margin: 0;
         }
-        
+
         .interaction-toggle-slider {
             position: absolute;
             cursor: pointer;
@@ -437,7 +445,7 @@
             border-radius: 34px;
             pointer-events: none;
         }
-        
+
         .interaction-toggle-slider:before {
             position: absolute;
             content: "";
@@ -449,24 +457,24 @@
             transition: .4s;
             border-radius: 50%;
         }
-        
-        .interaction-toggle input:checked + .interaction-toggle-slider {
+
+        .interaction-toggle input:checked+.interaction-toggle-slider {
             background-color: var(--secondary-color);
         }
-        
-        .interaction-toggle input:checked + .interaction-toggle-slider:before {
+
+        .interaction-toggle input:checked+.interaction-toggle-slider:before {
             transform: translateX(24px);
         }
-        
+
         .interaction-toggle input:disabled {
             cursor: not-allowed;
         }
-        
-        .interaction-toggle input:disabled + .interaction-toggle-slider {
+
+        .interaction-toggle input:disabled+.interaction-toggle-slider {
             opacity: 0.5;
             cursor: not-allowed;
         }
-        
+
         .commercial-content-section {
             background: #fff8e1;
             border: 2px solid #ffc107;
@@ -474,7 +482,7 @@
             padding: 20px;
             margin: 20px 0;
         }
-        
+
         .commercial-toggle {
             display: flex;
             align-items: center;
@@ -484,7 +492,7 @@
             background: white;
             border-radius: 8px;
         }
-        
+
         .commercial-options {
             display: none;
             padding: 15px;
@@ -492,22 +500,32 @@
             border-radius: 8px;
             transition: all 0.3s ease;
         }
-        
+
         .commercial-options.active {
             display: block;
         }
-        
+
         .commercial-options.error {
             border: 2px solid #dc3545 !important;
             animation: shake 0.5s ease;
         }
-        
+
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
         }
-        
+
         .commercial-option {
             display: flex;
             align-items: flex-start;
@@ -517,30 +535,30 @@
             border-radius: 6px;
             transition: background 0.3s;
         }
-        
+
         .commercial-option:hover {
             background: #f5f5f5;
         }
-        
+
         .commercial-option input[type="checkbox"] {
             margin-right: 10px;
             margin-top: 3px;
         }
-        
+
         .commercial-option-content {
             flex: 1;
         }
-        
+
         .commercial-option-title {
             font-weight: 600;
             margin-bottom: 5px;
         }
-        
+
         .commercial-option-description {
             font-size: 13px;
             color: #666;
         }
-        
+
         .commercial-warning {
             background: #fff3cd;
             border: 1px solid #ffc107;
@@ -552,25 +570,25 @@
             font-weight: 500;
             color: #856404;
         }
-        
+
         .commercial-warning.active {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        
+
         .commercial-warning i {
             color: #ff9800;
             font-size: 16px;
         }
-        
+
         .video-preview-section {
             background: #f9f9f9;
             border-radius: 8px;
             padding: 20px;
             margin: 20px 0;
         }
-        
+
         .video-preview-container {
             position: relative;
             width: 100%;
@@ -580,12 +598,12 @@
             border-radius: 8px;
             overflow: hidden;
         }
-        
+
         .video-preview {
             width: 100%;
             height: auto;
         }
-        
+
         .file-upload-area {
             border: 2px dashed #ddd;
             border-radius: 12px;
@@ -595,17 +613,17 @@
             transition: all 0.3s ease;
             background: #fafafa;
         }
-        
+
         .file-upload-area:hover {
             border-color: var(--primary-color);
             background: #f5f5f5;
         }
-        
+
         .file-upload-area.dragover {
             border-color: var(--primary-color);
             background: #e8f5e9;
         }
-        
+
         .consent-declaration {
             background: #e8f5e9;
             border: 2px solid #4caf50;
@@ -616,62 +634,62 @@
             align-items: flex-start;
             gap: 10px;
         }
-        
+
         .consent-declaration input[type="checkbox"] {
             margin-top: 3px;
         }
-        
+
         .consent-text {
             flex: 1;
             font-size: 14px;
             line-height: 1.5;
         }
-        
+
         .consent-text a {
             color: var(--primary-color);
             text-decoration: none;
         }
-        
+
         .consent-text a:hover {
             text-decoration: underline;
         }
-        
+
         .post-status {
             margin-top: 20px;
             padding: 15px;
             border-radius: 8px;
             display: none;
         }
-        
+
         .post-status.success {
             background: #e8f5e9;
             color: #2e7d32;
             border: 1px solid #81c784;
         }
-        
+
         .post-status.error {
             background: #ffebee;
             color: #c62828;
             border: 1px solid #ef5350;
         }
-        
+
         .post-status.info {
             background: #e3f2fd;
             color: #1565c0;
             border: 1px solid #64b5f6;
         }
-        
+
         .post-status.processing {
             background: #fff8e1;
             color: #f57c00;
             border: 1px solid #ffb74d;
         }
-        
+
         .loading {
             text-align: center;
             padding: 50px;
         }
-        
+
         .spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid var(--primary-color);
@@ -681,29 +699,35 @@
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         @keyframes slideIn {
             from {
                 opacity: 0;
                 transform: translateX(100%);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
             }
         }
-        
+
         .tooltip {
             position: relative;
             display: inline-block;
             cursor: help;
         }
-        
+
         .tooltip .tooltiptext {
             visibility: hidden;
             width: 250px;
@@ -721,33 +745,35 @@
             transition: opacity 0.3s;
             font-size: 13px;
         }
-        
+
         .tooltip:hover .tooltiptext {
             visibility: visible;
             opacity: 1;
         }
-        
+
         .character-count {
             text-align: right;
             font-size: 12px;
             color: #666;
             margin-top: 5px;
         }
-        
+
         .character-count.warning {
             color: #ff9800;
         }
-        
+
         .character-count.error {
             color: #f44336;
         }
     </style>
 </head>
+
 <body>
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-logo">
-                <img src="{{ url_for('static', filename='postify.png') }}" alt="Postify" style="width: 40px; height: 40px;">
+                <img src="{{ url_for('static', filename='postify.png') }}" alt="Postify"
+                    style="width: 40px; height: 40px;">
                 <span>Postify</span>
             </div>
             <ul class="nav-menu">
@@ -762,7 +788,7 @@
         <!-- Main Posting Section -->
         <div class="posting-section">
             <h2><i class="fas fa-video"></i> Post to TikTok</h2>
-            
+
             <form id="postForm">
                 <!-- Enhanced Account Picker with Management -->
                 {% if tiktok_accounts and tiktok_accounts|length > 0 %}
@@ -772,47 +798,51 @@
                         <select id="accountPicker" name="tiktok_account_id" required style="flex: 1;">
                             <option value="">-- Select Account --</option>
                             {% for account in tiktok_accounts %}
-                            <option value="{{ account.id }}" 
-                                    data-username="{{ account.username }}" 
-                                    data-display-name="{{ account.display_name }}"
-                                    data-avatar="{{ account.avatar_url }}"
-                                    data-followers="{{ account.follower_count }}">
+                            <option value="{{ account.id }}" data-username="{{ account.username }}"
+                                data-display-name="{{ account.display_name }}" data-avatar="{{ account.avatar_url }}"
+                                data-followers="{{ account.follower_count }}">
                                 @{{ account.username }} - {{ account.display_name or 'TikTok User' }}
                             </option>
                             {% endfor %}
                         </select>
-                        <button type="button" id="removeAccountBtn" class="btn btn-secondary" style="padding: 12px 20px;" disabled>
+                        <button type="button" id="removeAccountBtn" class="btn btn-secondary"
+                            style="padding: 12px 20px;" disabled>
                             <i class="fas fa-trash"></i> Remove
                         </button>
                         <button type="button" id="addAccountBtn" class="btn btn-primary" style="padding: 12px 20px;">
                             <i class="fas fa-plus"></i> Add Account
                         </button>
                     </div>
-                    <div id="accountInfo" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div id="accountInfo"
+                        style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <img id="accountAvatar" src="" alt="" style="width: 50px; height: 50px; border-radius: 50%; display: none;">
-                            <div id="accountAvatarPlaceholder" style="width: 50px; height: 50px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center;">
+                            <img id="accountAvatar" src="" alt=""
+                                style="width: 50px; height: 50px; border-radius: 50%; display: none;">
+                            <div id="accountAvatarPlaceholder"
+                                style="width: 50px; height: 50px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center;">
                                 <i class="fas fa-user" style="color: #999;"></i>
                             </div>
                             <div style="flex: 1;">
                                 <div id="accountDisplayName" style="font-weight: 600; font-size: 16px;"></div>
                                 <div id="accountNickname" style="color: #666; font-size: 14px;"></div>
                             </div>
-                            <button type="button" id="refreshAccountBtn" class="btn btn-secondary" style="padding: 8px 16px;">
+                            <button type="button" id="refreshAccountBtn" class="btn btn-secondary"
+                                style="padding: 8px 16px;">
                                 <i class="fas fa-sync"></i> Refresh
                             </button>
                         </div>
                     </div>
                 </div>
                 {% else %}
-                <div class="alert alert-warning" style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div class="alert alert-warning"
+                    style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <i class="fas fa-exclamation-triangle"></i> No TikTok accounts connected.
                     <button type="button" id="addFirstAccountBtn" class="btn btn-primary" style="margin-left: 15px;">
                         <i class="fas fa-plus"></i> Connect TikTok Account
                     </button>
                 </div>
                 {% endif %}
-                
+
                 <!-- Video Upload/URL Section -->
                 <div class="form-group">
                     <label class="required">Video Content</label>
@@ -821,7 +851,8 @@
                         <h3>Drag & Drop your video here</h3>
                         <p>or click to browse</p>
                         <input type="file" id="videoFile" accept="video/*" style="display: none;">
-                        <p style="margin-top: 10px; color: #666;">Max duration: <span id="maxDurationInfo">--</span> seconds</p>
+                        <p style="margin-top: 10px; color: #666;">Max duration: <span id="maxDurationInfo">--</span>
+                            seconds</p>
                     </div>
                     <div id="videoInfo" style="display: none; margin-top: 15px;">
                         <div style="display: flex; align-items: center; gap: 15px;">
@@ -841,7 +872,8 @@
                 <!-- Title/Caption -->
                 <div class="form-group">
                     <label for="title" class="required">Caption</label>
-                    <textarea id="title" name="title" placeholder="Write a caption for your video..." maxlength="2200" required></textarea>
+                    <textarea id="title" name="title" placeholder="Write a caption for your video..." maxlength="2200"
+                        required></textarea>
                     <div class="character-count">
                         <span id="titleCharCount">0</span> / 2200
                     </div>
@@ -854,18 +886,24 @@
                         <option value="" disabled selected>-- Select Privacy Level (Required) --</option>
                     </select>
                     <div class="privacy-note" style="color: #ff0050; font-weight: 500;">
-                        <i class="fas fa-exclamation-circle"></i> You must manually select a privacy level - no default is set
+                        <i class="fas fa-exclamation-circle"></i> You must manually select a privacy level - no default
+                        is set
                     </div>
-                    <div id="brandedContentPrivacyNote" class="privacy-note" style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; margin-top: 8px; display: none;">
-                        <i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i> <strong>Important:</strong> Branded content can only be configured with visibility as Public or Friends. Private visibility is not available for branded content.
+                    <div id="brandedContentPrivacyNote" class="privacy-note"
+                        style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; margin-top: 8px; display: none;">
+                        <i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i> <strong>Important:</strong>
+                        Branded content can only be configured with visibility as Public or Friends. Private visibility
+                        is not available for branded content.
                     </div>
                 </div>
 
                 <!-- Interaction Settings -->
                 <div class="form-group">
                     <label>Interaction Settings</label>
-                    <div class="interaction-note" style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
-                        <i class="fas fa-info-circle"></i> <strong>Important:</strong> You must manually enable each interaction - none are checked by default
+                    <div class="interaction-note"
+                        style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
+                        <i class="fas fa-info-circle"></i> <strong>Important:</strong> You must manually enable each
+                        interaction - none are checked by default
                     </div>
                     <div class="interaction-controls">
                         <div class="interaction-item" id="commentControl">
@@ -874,7 +912,8 @@
                                 <div>
                                     <div>Allow Comments</div>
                                     <small style="color: #666;">Let viewers comment on your video</small>
-                                    <small id="commentDisabledReason" style="color: #ff0050; display: none;">Disabled in your account settings</small>
+                                    <small id="commentDisabledReason" style="color: #ff0050; display: none;">Disabled in
+                                        your account settings</small>
                                 </div>
                             </div>
                             <div class="interaction-toggle">
@@ -882,14 +921,15 @@
                                 <span class="interaction-toggle-slider"></span>
                             </div>
                         </div>
-                        
+
                         <div class="interaction-item" id="duetControl">
                             <div class="interaction-label">
                                 <i class="fas fa-users"></i>
                                 <div>
                                     <div>Allow Duet</div>
                                     <small style="color: #666;">Let others create duets with your video</small>
-                                    <small id="duetDisabledReason" style="color: #ff0050; display: none;">Disabled in your account settings</small>
+                                    <small id="duetDisabledReason" style="color: #ff0050; display: none;">Disabled in
+                                        your account settings</small>
                                 </div>
                             </div>
                             <div class="interaction-toggle">
@@ -897,14 +937,15 @@
                                 <span class="interaction-toggle-slider"></span>
                             </div>
                         </div>
-                        
+
                         <div class="interaction-item" id="stitchControl">
                             <div class="interaction-label">
                                 <i class="fas fa-film"></i>
                                 <div>
                                     <div>Allow Stitch</div>
                                     <small style="color: #666;">Let others use parts of your video</small>
-                                    <small id="stitchDisabledReason" style="color: #ff0050; display: none;">Disabled in your account settings</small>
+                                    <small id="stitchDisabledReason" style="color: #ff0050; display: none;">Disabled in
+                                        your account settings</small>
                                 </div>
                             </div>
                             <div class="interaction-toggle">
@@ -913,8 +954,10 @@
                             </div>
                         </div>
                     </div>
-                    <div class="photo-note" id="photoInteractionNote" style="display: none; background: #e3f2fd; border: 1px solid #2196F3; padding: 10px; border-radius: 5px; margin-top: 15px; font-size: 13px;">
-                        <i class="fas fa-image"></i> <strong>Photo Post:</strong> Only 'Allow Comments' is available (Duet and Stitch apply to videos only)
+                    <div class="photo-note" id="photoInteractionNote"
+                        style="display: none; background: #e3f2fd; border: 1px solid #2196F3; padding: 10px; border-radius: 5px; margin-top: 15px; font-size: 13px;">
+                        <i class="fas fa-image"></i> <strong>Photo Post:</strong> Only 'Allow Comments' is available
+                        (Duet and Stitch apply to videos only)
                     </div>
                 </div>
 
@@ -927,45 +970,53 @@
                         </div>
                         <div>
                             <div style="font-weight: 600;">Content Disclosure Setting</div>
-                            <div style="font-size: 13px; color: #666;">Indicate whether this content promotes yourself, a brand, product or service</div>
-                            <div style="font-size: 11px; color: #999; margin-top: 3px;">This feature is turned off by default</div>
+                            <div style="font-size: 13px; color: #666;">Indicate whether this content promotes yourself,
+                                a brand, product or service</div>
+                            <div style="font-size: 11px; color: #999; margin-top: 3px;">This feature is turned off by
+                                default</div>
                         </div>
                     </div>
-                    
-                    <div id="commercialOptions" class="commercial-options" title="You need to indicate if your content promotes yourself, a third party, or both">
+
+                    <div id="commercialOptions" class="commercial-options"
+                        title="You need to indicate if your content promotes yourself, a third party, or both">
                         <div class="commercial-option">
                             <input type="checkbox" id="yourBrand" name="your_brand">
                             <div class="commercial-option-content">
                                 <div class="commercial-option-title">Your Brand</div>
                                 <div class="commercial-option-description">
-                                    You are promoting yourself or your own business. This content will be classified as Brand Organic.
+                                    You are promoting yourself or your own business. This content will be classified as
+                                    Brand Organic.
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="commercial-option">
                             <input type="checkbox" id="brandedContent" name="branded_content">
                             <div class="commercial-option-content">
                                 <div class="commercial-option-title">Branded Content</div>
                                 <div class="commercial-option-description">
-                                    You are promoting another brand or a third party. This content will be classified as Branded Content.
+                                    You are promoting another brand or a third party. This content will be classified as
+                                    Branded Content.
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="commercialWarning" class="commercial-warning">
                             <i class="fas fa-tag"></i>
                             <span id="commercialWarningText">Your video will be labeled accordingly</span>
                         </div>
-                        
-                        <div id="commercialSelectionError" class="commercial-warning" style="background: #ffebee; border-color: #ef5350; color: #c62828; display: none;">
+
+                        <div id="commercialSelectionError" class="commercial-warning"
+                            style="background: #ffebee; border-color: #ef5350; color: #c62828; display: none;">
                             <i class="fas fa-exclamation-circle"></i>
                             You need to indicate if your content promotes yourself, a third party, or both.
                         </div>
-                        
-                        <div id="brandedContentDisabledNote" class="commercial-warning" style="background: #e3f2fd; border: 1px solid #2196F3; color: #1565c0; display: none;">
+
+                        <div id="brandedContentDisabledNote" class="commercial-warning"
+                            style="background: #e3f2fd; border: 1px solid #2196F3; color: #1565c0; display: none;">
                             <i class="fas fa-info-circle"></i>
-                            <strong>Note:</strong> Branded Content option is disabled because Private visibility is selected. Change privacy to Public or Friends to enable Branded Content.
+                            <strong>Note:</strong> Branded Content option is disabled because Private visibility is
+                            selected. Change privacy to Public or Friends to enable Branded Content.
                         </div>
                     </div>
                 </div>
@@ -974,10 +1025,14 @@
                 <div class="consent-declaration">
                     <input type="checkbox" id="userConsent" name="user_consent" required>
                     <div class="consent-text">
-                        <strong id="consentDeclaration">By posting, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a></strong>
+                        <strong id="consentDeclaration">By posting, you agree to TikTok's <a
+                                href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
+                                target="_blank">Music Usage Confirmation</a></strong>
                         <br>
                         <small style="color: #666; margin-top: 5px; display: block;">
-                            <i class="fas fa-info-circle"></i> <strong>Processing Notice:</strong> I understand that after publishing, my content may take a few minutes to fully process and become visible on my TikTok profile due to TikTok's processing and moderation systems.
+                            <i class="fas fa-info-circle"></i> <strong>Processing Notice:</strong> I understand that
+                            after publishing, my content may take a few minutes to fully process and become visible on
+                            my TikTok profile due to TikTok's processing and moderation systems.
                         </small>
                     </div>
                 </div>
@@ -992,9 +1047,10 @@
 
             <!-- Status Messages -->
             <div id="postStatus" class="post-status"></div>
-            
+
             <!-- Post Processing Status -->
-            <div id="processingStatus" style="display: none; margin-top: 20px; padding: 20px; background: #f0f8ff; border: 2px solid #4169e1; border-radius: 8px;">
+            <div id="processingStatus"
+                style="display: none; margin-top: 20px; padding: 20px; background: #f0f8ff; border: 2px solid #4169e1; border-radius: 8px;">
                 <h4 style="margin-top: 0; color: #4169e1;">
                     <i class="fas fa-sync fa-spin"></i> Processing Your Post
                 </h4>
@@ -1028,14 +1084,14 @@
             setupEventListeners();  // Setup listeners first to auto-select account
             // The account picker change event will call fetchCreatorInfo and fetchUserProfile
             updateConsentDeclaration();  // Initialize consent declaration
-            
+
             // Check if branded content is checked on page load and update privacy restrictions
             const brandedContent = document.getElementById('brandedContent');
             const commercialToggle = document.getElementById('commercialToggle');
             if (commercialToggle?.checked && brandedContent?.checked) {
                 updatePrivacyDropdownRestrictions();
             }
-            
+
             updateSubmitButton();
         });
 
@@ -1045,10 +1101,10 @@
                 // Get account ID if available
                 const accountId = currentAccount?.id || '';
                 const url = accountId ? `/api/creator/info/enhanced?account_id=${accountId}` : '/api/creator/info/enhanced';
-                
+
                 const response = await fetch(url);
                 const data = await response.json();
-                
+
                 if (response.ok && data.data) {
                     creatorInfo = data.data;
                     // Update max duration display if element exists
@@ -1072,10 +1128,10 @@
         // Update privacy options based on account-specific settings
         function updatePrivacyOptionsForAccount(accountId) {
             const privacySelect = document.getElementById('privacy');
-            
+
             // Clear existing options but keep the required placeholder
             privacySelect.innerHTML = '<option value="" disabled selected>-- Select Privacy Level (Required) --</option>';
-            
+
             // Reset selection to force user to choose
             privacySelect.value = '';
 
@@ -1097,19 +1153,19 @@
                 opt.textContent = privacyLabels[optionValue] || optionValue;
                 privacySelect.appendChild(opt);
             });
-            
+
             // Highlight that selection is required
             privacySelect.style.borderColor = '#ff0050';
-            privacySelect.addEventListener('change', function() {
+            privacySelect.addEventListener('change', function () {
                 if (this.value) {
                     this.style.borderColor = '#ddd'; // Reset border when selected
                 }
             }, { once: true });
-            
+
             // Check initial privacy restrictions for branded content
             checkBrandedContentAvailability();
         }
-        
+
         // Legacy function for backward compatibility
         function updatePrivacyOptions() {
             if (currentAccount) {
@@ -1124,23 +1180,23 @@
                 console.log('No creator settings found for account', accountId);
                 return;
             }
-            
+
             console.log('Updating interaction settings for account', accountId, 'with settings:', creatorSettings);
 
             // Get all interaction controls
             const commentToggle = document.getElementById('allowComments');
             const duetToggle = document.getElementById('allowDuet');
             const stitchToggle = document.getElementById('allowStitch');
-            
+
             const commentControl = document.getElementById('commentControl');
             const duetControl = document.getElementById('duetControl');
             const stitchControl = document.getElementById('stitchControl');
-            
+
             // Reset all toggles to unchecked (no default checked state)
             commentToggle.checked = false;
             duetToggle.checked = false;
             stitchToggle.checked = false;
-            
+
             // Handle comment toggle based on creator settings
             if (creatorSettings.comment_disabled) {
                 commentToggle.disabled = true;
@@ -1174,7 +1230,7 @@
                 document.getElementById('stitchDisabledReason').style.display = 'none';
             }
         }
-        
+
         // Legacy function for backward compatibility
         function updateInteractionSettings() {
             if (currentAccount) {
@@ -1191,7 +1247,7 @@
             const addFirstAccountBtn = document.getElementById('addFirstAccountBtn');
             const refreshAccountBtn = document.getElementById('refreshAccountBtn');
             const accountInfo = document.getElementById('accountInfo');
-            
+
             if (accountPicker) {
                 accountPicker.addEventListener('change', async (e) => {
                     const selectedId = e.target.value;
@@ -1204,15 +1260,15 @@
                             avatar_url: selectedOption.dataset.avatar,
                             followers: selectedOption.dataset.followers
                         };
-                        
+
                         // Show account info
                         displayAccountInfo(currentAccount);
-                        
+
                         // Enable remove button
                         if (removeAccountBtn) {
                             removeAccountBtn.disabled = false;
                         }
-                        
+
                         // Refresh creator info and profile for the selected account
                         await fetchCreatorInfo();
                         await fetchUserProfile();
@@ -1227,7 +1283,7 @@
                     }
                     updateSubmitButton();
                 });
-                
+
                 // Auto-select first account
                 if (accountPicker.options.length === 2) { // 2 because first is placeholder
                     accountPicker.selectedIndex = 1;
@@ -1238,28 +1294,28 @@
                     accountPicker.dispatchEvent(new Event('change'));
                 }
             }
-            
+
             // Add Account button
             if (addAccountBtn) {
                 addAccountBtn.addEventListener('click', () => {
                     window.location.href = '/auth/tiktok/add';
                 });
             }
-            
+
             // Add First Account button
             if (addFirstAccountBtn) {
                 addFirstAccountBtn.addEventListener('click', () => {
                     window.location.href = '/auth/tiktok';
                 });
             }
-            
+
             // Remove Account button
             if (removeAccountBtn) {
                 removeAccountBtn.addEventListener('click', async () => {
                     if (!currentAccount) return;
-                    
+
                     const confirmRemove = confirm(`Are you sure you want to remove ${currentAccount.display_name || currentAccount.username} from your account?\n\nThis will revoke access and you'll need to reconnect if you want to use this account again.`);
-                    
+
                     if (confirmRemove) {
                         try {
                             const response = await fetch(`/api/accounts/${currentAccount.id}`, {
@@ -1268,22 +1324,22 @@
                                     'Content-Type': 'application/json'
                                 }
                             });
-                            
+
                             if (response.ok) {
                                 showStatus(`Account ${currentAccount.display_name || currentAccount.username} has been removed.`, 'success');
-                                
+
                                 // Remove from select
                                 const option = accountPicker.querySelector(`option[value="${currentAccount.id}"]`);
                                 if (option) {
                                     option.remove();
                                 }
-                                
+
                                 // Reset selection
                                 accountPicker.value = '';
                                 currentAccount = null;
                                 accountInfo.style.display = 'none';
                                 removeAccountBtn.disabled = true;
-                                
+
                                 // If no accounts left, show the no accounts message
                                 if (accountPicker.options.length === 1) { // Only placeholder left
                                     location.reload(); // Reload to show the "no accounts" message
@@ -1298,12 +1354,12 @@
                     }
                 });
             }
-            
+
             // Refresh Account button
             if (refreshAccountBtn) {
                 refreshAccountBtn.addEventListener('click', async () => {
                     if (!currentAccount) return;
-                    
+
                     showNotification('Refreshing account information...', 'info', 5000);
                     try {
                         await fetchUserProfile();
@@ -1313,13 +1369,13 @@
                     }
                 });
             }
-            
+
             // File upload
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('videoFile');
 
             dropZone.addEventListener('click', () => fileInput.click());
-            
+
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 dropZone.classList.add('dragover');
@@ -1332,7 +1388,7 @@
             dropZone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 dropZone.classList.remove('dragover');
-                
+
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
                     handleFileSelect(files[0]);
@@ -1351,7 +1407,7 @@
                 const count = titleInput.value.length;
                 const countElement = document.getElementById('titleCharCount');
                 countElement.textContent = count;
-                
+
                 if (count > 2000) {
                     countElement.parentElement.classList.add('error');
                 } else if (count > 1800) {
@@ -1359,7 +1415,7 @@
                 } else {
                     countElement.parentElement.classList.remove('warning', 'error');
                 }
-                
+
                 // Update submit button state when caption changes
                 updateSubmitButton();
             });
@@ -1402,7 +1458,7 @@
                 const brandedContentCheckbox = document.getElementById('brandedContent');
                 const brandedContentOption = brandedContentCheckbox.closest('.commercial-option');
                 const commercialToggle = document.getElementById('commercialToggle').checked;
-                
+
                 // Prevent selecting Private when Branded Content is active
                 if (commercialToggle && brandedContent && e.target.value === 'SELF_ONLY') {
                     e.preventDefault();
@@ -1419,7 +1475,7 @@
                     showNotification('Branded content cannot be set to Private visibility. Please choose Public or Friends.', 'warning', 5000);
                     return;
                 }
-                
+
                 // Disable/Enable Branded Content based on privacy selection
                 if (e.target.value === 'SELF_ONLY') {
                     // Private selected - disable Branded Content
@@ -1427,13 +1483,13 @@
                     brandedContentCheckbox.checked = false; // Uncheck if it was checked
                     brandedContentOption.style.opacity = '0.5';
                     brandedContentOption.title = 'Branded content cannot be used with Private visibility';
-                    
+
                     // Update the description to show restriction
                     const description = brandedContentOption.querySelector('.commercial-option-description');
                     if (description && !description.innerHTML.includes('(Not available')) {
                         description.innerHTML += '<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>';
                     }
-                    
+
                     // Show the disabled note if commercial toggle is on
                     const brandedContentDisabledNote = document.getElementById('brandedContentDisabledNote');
                     if (commercialToggle && brandedContentDisabledNote) {
@@ -1445,20 +1501,20 @@
                     brandedContentCheckbox.disabled = false;
                     brandedContentOption.style.opacity = '1';
                     brandedContentOption.title = '';
-                    
+
                     // Remove the restriction message
                     const description = brandedContentOption.querySelector('.commercial-option-description');
                     if (description && description.innerHTML.includes('(Not available')) {
                         description.innerHTML = description.innerHTML.replace('<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>', '');
                     }
-                    
+
                     // Hide the disabled note
                     const brandedContentDisabledNote = document.getElementById('brandedContentDisabledNote');
                     if (brandedContentDisabledNote) {
                         brandedContentDisabledNote.style.display = 'none';
                     }
                 }
-                
+
                 checkPrivacyRestrictions();
                 updateCommercialWarning();
                 updateSubmitButton();
@@ -1475,12 +1531,12 @@
                     const commercialToggle = document.getElementById('commercialToggle').checked;
                     const yourBrand = document.getElementById('yourBrand').checked;
                     const brandedContent = document.getElementById('brandedContent').checked;
-                    
+
                     // Show notification specifically for commercial content not selected
                     if (commercialToggle && !yourBrand && !brandedContent && !hoverNotificationShown) {
                         showNotification('You need to indicate if your content promotes yourself, a third party, or both.', 'warning', 4000);
                         hoverNotificationShown = true;
-                        
+
                         // Scroll to and highlight the commercial options section
                         const commercialSection = document.querySelector('.commercial-content-section');
                         if (commercialSection) {
@@ -1494,7 +1550,7 @@
                     }
                 }
             });
-            
+
             submitBtn.addEventListener('mouseleave', () => {
                 // Reset the flag when mouse leaves
                 setTimeout(() => {
@@ -1505,18 +1561,18 @@
             // Form submission
             document.getElementById('postForm').addEventListener('submit', handleFormSubmit);
         }
-        
+
         // Display account info helper
         function displayAccountInfo(account) {
             const accountInfo = document.getElementById('accountInfo');
             if (!accountInfo) return;
-            
+
             accountInfo.style.display = 'block';
-            
+
             // Update avatar
             const avatar = document.getElementById('accountAvatar');
             const placeholder = document.getElementById('accountAvatarPlaceholder');
-            
+
             if (account.avatar_url && account.avatar_url !== 'None' && account.avatar_url !== '') {
                 avatar.src = account.avatar_url;
                 avatar.style.display = 'block';
@@ -1525,11 +1581,11 @@
                 avatar.style.display = 'none';
                 placeholder.style.display = 'flex';
             }
-            
+
             // Update info - show username and nickname
             const username = account.username || '';
             const nickname = account.display_name || account.username || 'TikTok User';
-            
+
             document.getElementById('accountDisplayName').textContent = `@${username}`;
             document.getElementById('accountNickname').textContent = nickname;
         }
@@ -1537,15 +1593,15 @@
         // Handle file selection
         async function handleFileSelect(file) {
             selectedFile = file;
-            
+
             // Display file info
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            
+
             // Check file type for interaction settings
             const fileExtension = file.name.split('.').pop().toLowerCase();
             const isPhoto = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
-            
+
             // Handle interaction settings for photo vs video
             if (isPhoto) {
                 // For photos, hide duet and stitch options (not applicable)
@@ -1561,36 +1617,36 @@
                 document.getElementById('stitchControl').style.display = 'block';
                 document.getElementById('photoInteractionNote').style.display = 'none';
             }
-            
+
             // Create video preview
             const videoPreview = document.getElementById('videoPreview');
             const url = URL.createObjectURL(file);
             videoPreview.src = url;
-            
+
             // Get video duration
             videoPreview.addEventListener('loadedmetadata', () => {
                 videoDurationSeconds = Math.floor(videoPreview.duration);
                 document.getElementById('videoDuration').textContent = videoDurationSeconds;
-                
+
                 // Check video duration against account-specific max_video_post_duration_sec
                 const accountId = currentAccount?.id;
                 const maxDuration = accountCreatorInfo[accountId]?.max_video_duration || 60;
-                
+
                 if (videoDurationSeconds > maxDuration) {
                     document.getElementById('durationWarning').style.display = 'block';
-                    document.getElementById('durationWarning').innerHTML = 
+                    document.getElementById('durationWarning').innerHTML =
                         `<i class="fas fa-exclamation-circle"></i> Video duration (${videoDurationSeconds}s) exceeds maximum allowed duration of ${maxDuration} seconds for this account. Please select a shorter video.`;
                     showStatus(`Video duration exceeds maximum allowed (${maxDuration}s) for this account. Please select a shorter video.`, 'error');
-                    
+
                     // Disable submit button for videos that exceed duration
                     document.getElementById('submitBtn').disabled = true;
                 } else {
                     document.getElementById('durationWarning').style.display = 'none';
                 }
-                
+
                 updateSubmitButton();
             });
-            
+
             document.getElementById('videoInfo').style.display = 'block';
         }
 
@@ -1601,7 +1657,7 @@
             const warning = document.getElementById('commercialWarning');
             const warningText = document.getElementById('commercialWarningText');
             const selectionError = document.getElementById('commercialSelectionError');
-            
+
             // Detect if it's a photo or video
             const isPhoto = selectedFile && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(
                 selectedFile.name.split('.').pop().toLowerCase()
@@ -1617,7 +1673,7 @@
                     selectionError.style.display = 'none';
                     warning.style.display = 'flex';  // Use flex display for proper alignment
                     warning.classList.add('active');
-                    
+
                     // Apply the exact requirements from the API spec
                     if (yourBrand && brandedContent) {
                         // Both selected - show "Paid partnership"
@@ -1636,22 +1692,22 @@
                 warning.classList.remove('active');
                 selectionError.style.display = 'none';
             }
-            
+
             // Update consent declaration based on commercial content selection
             updateConsentDeclaration();
             checkPrivacyRestrictions();
             updateSubmitButton();
         }
-        
+
         // Update consent declaration based on commercial content selection
         function updateConsentDeclaration() {
             const commercialToggle = document.getElementById('commercialToggle').checked;
             const yourBrand = document.getElementById('yourBrand').checked;
             const brandedContent = document.getElementById('brandedContent').checked;
             const consentDeclaration = document.getElementById('consentDeclaration');
-            
+
             if (!consentDeclaration) return;
-            
+
             if (commercialToggle) {
                 if (brandedContent) {
                     // When Branded Content is checked (alone or with Your Brand)
@@ -1675,7 +1731,7 @@
             const commercialToggle = document.getElementById('commercialToggle').checked;
             const privacySelect = document.getElementById('privacy');
             const brandedContentNote = document.getElementById('brandedContentPrivacyNote');
-            
+
             if (commercialToggle && brandedContent) {
                 // Disable Private option in dropdown when Branded Content is checked
                 Array.from(privacySelect.options).forEach(option => {
@@ -1687,14 +1743,14 @@
                         option.style.textDecoration = 'line-through';
                         option.style.cursor = 'not-allowed';
                         option.style.backgroundColor = '#f5f5f5';
-                        
+
                         // Add visual indication if not already added
                         if (option.textContent && !option.textContent.includes('(Not available')) {
                             option.textContent = option.textContent + ' (Not available for branded content)';
                         }
                     }
                 });
-                
+
                 // Show privacy restriction note
                 if (brandedContentNote) {
                     brandedContentNote.style.display = 'block';
@@ -1708,21 +1764,21 @@
                         option.style.color = '';
                         option.style.textDecoration = '';
                         option.style.cursor = '';
-                        
+
                         // Remove visual indication
                         if (option.textContent && option.textContent.includes('(Not available')) {
                             option.textContent = option.textContent.replace(' (Not available for branded content)', '');
                         }
                     }
                 });
-                
+
                 // Hide privacy restriction note if no branded content
                 if (brandedContentNote && !brandedContent) {
                     brandedContentNote.style.display = 'none';
                 }
             }
         }
-        
+
         // Check privacy restrictions for branded content
         function checkPrivacyRestrictions() {
             const brandedContent = document.getElementById('brandedContent').checked;
@@ -1733,7 +1789,7 @@
             if (commercialToggle && brandedContent) {
                 // Update privacy dropdown restrictions
                 updatePrivacyDropdownRestrictions();
-                
+
                 // Show the branded content privacy note
                 if (brandedContentNote) {
                     brandedContentNote.style.display = 'block';
@@ -1746,12 +1802,12 @@
                         option.style.color = '#999';
                         option.style.textDecoration = 'line-through';
                         option.style.cursor = 'not-allowed';
-                        
+
                         // Add visual indication
                         if (option.textContent && !option.textContent.includes('(Not available')) {
                             option.textContent = option.textContent + ' (Not available for branded content)';
                         }
-                        
+
                         // If Private is currently selected (not null/empty), automatically switch
                         if (privacySelect.value === 'SELF_ONLY') {
                             // Try to select PUBLIC_TO_EVERYONE first, then fallback to first enabled option
@@ -1786,7 +1842,7 @@
                 if (brandedContentNote) {
                     brandedContentNote.style.display = 'none';
                 }
-                
+
                 // Re-enable all options when branded content is not selected
                 Array.from(privacySelect.options).forEach(option => {
                     if (option.value === 'SELF_ONLY') {
@@ -1868,8 +1924,8 @@
             submitBtn.disabled = !canSubmit;
             if (reasons.length > 0) {
                 // Special case for commercial content disclosure
-                if (document.getElementById('commercialToggle').checked && 
-                    !document.getElementById('yourBrand').checked && 
+                if (document.getElementById('commercialToggle').checked &&
+                    !document.getElementById('yourBrand').checked &&
                     !document.getElementById('brandedContent').checked) {
                     submitBtn.title = 'You need to indicate if your content promotes yourself, a third party, or both.';
                     // Also highlight the commercial options section
@@ -1896,10 +1952,10 @@
             const commercialToggle = document.getElementById('commercialToggle').checked;
             const yourBrand = document.getElementById('yourBrand').checked;
             const brandedContent = document.getElementById('brandedContent').checked;
-            
+
             if (commercialToggle && !yourBrand && !brandedContent) {
                 showNotification('You need to indicate if your content promotes yourself, a third party, or both.', 'error', 5000);
-                
+
                 // Highlight and scroll to the commercial section
                 const commercialSection = document.querySelector('.commercial-content-section');
                 if (commercialSection) {
@@ -1907,13 +1963,13 @@
                     commercialSection.style.transition = 'all 0.3s ease';
                     commercialSection.style.border = '2px solid #dc3545';
                     commercialSection.style.boxShadow = '0 0 15px rgba(220, 53, 69, 0.3)';
-                    
+
                     // Show the selection error message
                     const selectionError = document.getElementById('commercialSelectionError');
                     if (selectionError) {
                         selectionError.style.display = 'flex';
                     }
-                    
+
                     setTimeout(() => {
                         commercialSection.style.border = '2px solid #ffc107';
                         commercialSection.style.boxShadow = '';
@@ -1940,6 +1996,8 @@
                 alert('Please select a privacy level for your video.\n\nThis is a required field and you must manually choose an option - no default is allowed.');
                 return;
             }
+
+            alert("Privacy level is now " + privacyLevel);
 
             showStatus('Uploading video to TikTok...', 'processing');
 
@@ -2023,14 +2081,14 @@
                     // Check for success flag or 200/201 status codes
                     if (chunkResult.success || chunkResult.status_code === 200 || chunkResult.status_code === 201) {
                         showStatus('Video uploaded successfully! Checking processing status...', 'success');
-                        
+
                         // Show processing status section
                         document.getElementById('processingStatus').style.display = 'block';
                         document.getElementById('processingStage').textContent = 'Initializing...';
-                        
+
                         // Start polling for status
                         setTimeout(() => checkPostStatus(result.data.publish_id), 5000);
-                        
+
                         // Reset form
                         document.getElementById('postForm').reset();
                         selectedFile = null;
@@ -2051,7 +2109,7 @@
         async function checkPostStatus(publishId, attemptCount = 0) {
             const MAX_ATTEMPTS = 60; // Maximum polling attempts (5 minutes with 5-second intervals)
             const POLL_INTERVAL = 5000; // 5 seconds between polls
-            
+
             try {
                 const response = await fetch(`/api/post/status/${publishId}`);
                 const result = await response.json();
@@ -2061,7 +2119,7 @@
                     const failReason = result.data.fail_reason;
                     const uploadedBytes = result.data.uploaded_bytes;
                     const publicPostId = result.data.publicaly_available_post_id;
-                    
+
                     // Handle different status types according to TikTok API
                     // Update processing stage display
                     const processingStage = document.getElementById('processingStage');
@@ -2069,8 +2127,8 @@
                     if (pollAttempt) {
                         pollAttempt.textContent = `Status check ${attemptCount + 1} of ${MAX_ATTEMPTS}`;
                     }
-                    
-                    switch(status) {
+
+                    switch (status) {
                         case 'PROCESSING_UPLOAD':
                             // Show upload progress if available
                             if (uploadedBytes) {
@@ -2081,17 +2139,17 @@
                                 if (processingStage) processingStage.textContent = 'Stage: Uploading content to TikTok servers';
                             }
                             break;
-                            
+
                         case 'PROCESSING_DOWNLOAD':
                             showStatus('⏳ TikTok is downloading your video...', 'processing');
                             if (processingStage) processingStage.textContent = 'Stage: TikTok is downloading your video from the provided URL';
                             break;
-                            
+
                         case 'SEND_TO_USER_INBOX':
                             showStatus('📬 Notification sent to your TikTok inbox. Please complete the post in the TikTok app.', 'info');
                             document.getElementById('processingStatus').style.display = 'none';
                             return; // Stop polling for inbox-based posts
-                            
+
                         case 'PUBLISH_COMPLETE':
                             // Check if we have a public post ID
                             if (publicPostId && publicPostId.length > 0) {
@@ -2101,7 +2159,7 @@
                             }
                             document.getElementById('processingStatus').style.display = 'none';
                             return; // Stop polling
-                            
+
                         case 'FAILED':
                             // Provide detailed failure reasons
                             const failureMessages = {
@@ -2119,19 +2177,19 @@
                                 'spam_risk_text': 'Caption contains risky or spammy content.',
                                 'spam_risk': 'Post flagged as potential spam.'
                             };
-                            
+
                             const errorMessage = failureMessages[failReason] || failReason || 'Unknown error occurred';
                             showStatus(`❌ Post failed: ${errorMessage}`, 'error');
                             document.getElementById('processingStatus').style.display = 'none';
                             return; // Stop polling
-                            
+
                         default:
                             showStatus(`⏳ Processing: ${status}`, 'processing');
                             if (processingStage) processingStage.textContent = `Stage: ${status}`;
                     }
-                    
+
                     // Continue polling if still processing and haven't exceeded max attempts
-                    if (attemptCount < MAX_ATTEMPTS && 
+                    if (attemptCount < MAX_ATTEMPTS &&
                         (status === 'PROCESSING_UPLOAD' || status === 'PROCESSING_DOWNLOAD')) {
                         setTimeout(() => checkPostStatus(publishId, attemptCount + 1), POLL_INTERVAL);
                     } else if (attemptCount >= MAX_ATTEMPTS) {
@@ -2141,7 +2199,7 @@
                 } else {
                     // Handle API errors
                     if (result.error && result.error.code) {
-                        switch(result.error.code) {
+                        switch (result.error.code) {
                             case 'invalid_publish_id':
                                 showStatus('❌ Invalid publish ID. The post may have already been processed.', 'error');
                                 break;
@@ -2178,23 +2236,23 @@
             statusDiv.className = `post-status ${type}`;
             statusDiv.innerHTML = message;
             statusDiv.style.display = 'block';
-            
+
             if (type === 'success' || type === 'error') {
                 setTimeout(() => {
                     statusDiv.style.display = 'none';
                 }, 10000);
             }
         }
-        
+
         // Fetch user profile using Display API
         async function fetchUserProfile() {
             try {
                 const accountId = currentAccount?.id || '{{ tiktok_accounts[0].id if tiktok_accounts and tiktok_accounts|length > 0 else "" }}';
                 if (!accountId) return;
-                
+
                 const response = await fetch(`/api/user/profile/${accountId}`);
                 const data = await response.json();
-                
+
                 // Handle session expired or refresh token errors
                 if (response.status === 401 || response.status === 403) {
                     // Check if it's specifically a session/token error
@@ -2205,13 +2263,13 @@
                     }
                     return;
                 }
-                
+
                 // Handle other API errors
                 if (!response.ok) {
                     handleApiError(response.status, data, 'Failed to load profile information');
                     return;
                 }
-                
+
                 if (response.ok && data.success) {
                     // Store account-specific creator info
                     accountCreatorInfo[accountId] = {
@@ -2221,22 +2279,22 @@
                         duet_disabled: data.data.duet_disabled,
                         stitch_disabled: data.data.stitch_disabled
                     };
-                    
+
                     console.log('Account settings for', accountId, ':', accountCreatorInfo[accountId]);
-                    
+
                     // Update max duration display for this account
                     const maxDuration = accountCreatorInfo[accountId].max_video_duration;
                     const maxDurationInfoEl = document.getElementById('maxDurationInfo');
                     if (maxDurationInfoEl) {
                         maxDurationInfoEl.textContent = maxDuration;
                     }
-                    
+
                     // Update privacy options for this account
                     updatePrivacyOptionsForAccount(accountId);
-                    
+
                     // Update interaction settings based on account restrictions
                     updateInteractionSettingsForAccount(accountId);
-                    
+
                     // Update current account with fresh data
                     if (currentAccount && currentAccount.id === String(accountId)) {
                         currentAccount.avatar_url = data.data.avatar_url;
@@ -2251,17 +2309,17 @@
                 showNotification('Network error: Unable to load profile information', 'error');
             }
         }
-        
-        
+
+
         // Handle session expired errors (use functions from static/script.js)
         // This is a duplicate but needed for dashboard-specific handling
-        
+
         // Handle general API errors
         function handleApiError(statusCode, errorData, defaultMessage) {
             console.error(`API Error ${statusCode}:`, errorData);
-            
+
             let message = defaultMessage;
-            
+
             switch (statusCode) {
                 case 429:
                     message = 'Too many requests. Please wait a moment and try again.';
@@ -2279,10 +2337,10 @@
                         message = errorData.details;
                     }
             }
-            
+
             showNotification(message, 'error');
         }
-        
+
         // Check if Branded Content should be disabled based on privacy
         function checkBrandedContentAvailability() {
             const privacySelect = document.getElementById('privacy');
@@ -2290,21 +2348,21 @@
             const brandedContentOption = brandedContentCheckbox?.closest('.commercial-option');
             const brandedContentDisabledNote = document.getElementById('brandedContentDisabledNote');
             const commercialToggle = document.getElementById('commercialToggle');
-            
+
             if (!brandedContentCheckbox || !brandedContentOption) return;
-            
+
             if (privacySelect.value === 'SELF_ONLY') {
                 // Private selected - disable Branded Content
                 brandedContentCheckbox.disabled = true;
                 brandedContentCheckbox.checked = false;
                 brandedContentOption.style.opacity = '0.5';
                 brandedContentOption.title = 'Visibility for branded content cannot be private';
-                
+
                 const description = brandedContentOption.querySelector('.commercial-option-description');
                 if (description && !description.innerHTML.includes('(Not available')) {
                     description.innerHTML += '<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>';
                 }
-                
+
                 // Show the disabled note if commercial section is active
                 if (commercialToggle?.checked && brandedContentDisabledNote) {
                     brandedContentDisabledNote.style.display = 'flex';
@@ -2314,19 +2372,19 @@
                 brandedContentCheckbox.disabled = false;
                 brandedContentOption.style.opacity = '1';
                 brandedContentOption.title = '';
-                
+
                 const description = brandedContentOption.querySelector('.commercial-option-description');
                 if (description && description.innerHTML.includes('(Not available')) {
                     description.innerHTML = description.innerHTML.replace('<br><span style="color: #dc3545; font-weight: 500;">(Not available with Private visibility)</span>', '');
                 }
-                
+
                 // Hide the disabled note
                 if (brandedContentDisabledNote) {
                     brandedContentDisabledNote.style.display = 'none';
                 }
             }
         }
-        
+
         // Format large numbers
         function formatNumber(num) {
             if (num >= 1000000) {
@@ -2336,8 +2394,9 @@
             }
             return num.toString();
         }
-        
-        
+
+
     </script>
 </body>
+
 </html>

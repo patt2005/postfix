@@ -22,21 +22,17 @@ load_dotenv()
 import logging
 import sys
 
-# Configure structured logging for Google Cloud Run
-# Cloud Run automatically captures logs in JSON format from stdout
 logging.basicConfig(
     level=logging.INFO,
-    format='%(message)s',  # Simple format - Cloud Run adds its own metadata
+    format='%(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout)  # Output only to stdout for Cloud Run
+        logging.StreamHandler(sys.stdout)
     ],
-    force=True  # Override any existing configuration
+    force=True 
 )
 
-# Get logger
 logger = logging.getLogger(__name__)
 
-# For Google Cloud structured logging, we can use JSON format
 import json as json_lib
 
 class StructuredLogHandler(logging.Handler):
