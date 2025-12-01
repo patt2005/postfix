@@ -1123,7 +1123,6 @@ def upload_video_only():
     """
     try:
         if request.files and 'video' in request.files:
-            # Handle file upload
             file = request.files['video']
 
             if file.filename == '':
