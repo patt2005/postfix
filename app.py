@@ -312,9 +312,6 @@ def delete_test_user():
         }), 500
 
 
-# Custom decorator removed - using Flask-Login's login_required instead
-
-
 @app.route('/auth/tiktok')
 @login_required
 def auth_tiktok():
@@ -366,8 +363,6 @@ def auth_tiktok():
     auth_url = f"{TIKTOK_AUTH_URL}?{urlencode(params)}"
     logger.info(f"Redirecting to: {auth_url}")
     return redirect(auth_url)
-
-    # return redirect(f"https://postify-164860087792.europe-west1.run.app?{urlencode(params)}")
 
 @app.route('/auth/tiktok/add')
 @login_required
@@ -529,7 +524,7 @@ def tiktok_callback():
                         if display_name:
                             existing_account.display_name = display_name
                         existing_account.avatar_url = tiktok_user.get('avatar_url', '')
-                        # Stats fields not available with basic scope - keep existing values
+
                         existing_account.access_token = token_data['access_token']
                         existing_account.refresh_token = token_data.get('refresh_token')
                         existing_account.token_expires_at = expires_at
