@@ -2213,9 +2213,6 @@
                 // Add additional metadata as JSON string
                 const metadata = {
                     tiktok_account_id: currentAccount?.id,
-                    source_type: 'FILE_UPLOAD',
-                    video_size: selectedFile.size,
-                    video_duration: videoDurationSeconds,
                     title: formData.get('title'),
                     privacy_level: formData.get('privacy'),
                     disable_comment: !formData.get('allow_comments'),
@@ -2253,7 +2250,7 @@
 
                     const uploadResult = await uploadResponse.json();
 
-                    if (uploadResponse.ok && uploadResult.video_path) {
+                    if (uploadResponse.ok && uploadResult.fileUrl) {
                         const scheduleDate = document.getElementById('scheduleDate').value;
                         const scheduleTime = document.getElementById('scheduleTime').value;
                         const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
@@ -2261,7 +2258,7 @@
                         // Prepare scheduled post data according to API spec
                         const scheduledPostData = {
                             tiktok_account_id: currentAccount?.id,
-                            video_path: uploadResult.video_path,  // Use local video path
+                            video_url: uploadResult.fileUrl,  // Use external file URL
                             scheduled_time: scheduledDateTime.toISOString(),
                             title: formData.get('title'),
                             description: formData.get('title'),  // Use title as description
@@ -2319,7 +2316,7 @@
                     }
                 } else {
                     // Immediate post - normal flow
-                    showStatus('Initiating post to TikTok...', 'processing');
+                    showStatus('Uploading video to external API...', 'processing');
 
                     // Send file with post initiation
                     const response = await fetch('/api/post/video', {
@@ -2330,41 +2327,22 @@
                     const result = await response.json();
 
                     if (response.ok && result.data) {
-                        showStatus('Uploading video chunks to TikTok...', 'processing');
+                        // Using PULL_FROM_URL - TikTok will download the video directly
+                        // No need for chunk upload step
+                        showStatus('Video uploaded! TikTok is processing...', 'success');
 
-                        // Upload video chunk
-                        const chunkResponse = await fetch('/api/post/upload/chunk', {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                upload_url: result.data.upload_url,
-                                video_path: result.video_path
-                            })
-                        });
+                        // Show processing status section
+                        document.getElementById('processingStatus').style.display = 'block';
+                        document.getElementById('processingStage').textContent = 'TikTok is downloading and processing your video...';
 
-                        const chunkResult = await chunkResponse.json();
+                        // Start polling for status
+                        setTimeout(() => checkPostStatus(result.data.publish_id), 5000);
 
-                        // Check for success flag or 200/201 status codes
-                        if (chunkResult.success || chunkResult.status_code === 200 || chunkResult.status_code === 201) {
-                            showStatus('Video uploaded successfully! Checking processing status...', 'success');
-
-                            // Show processing status section
-                            document.getElementById('processingStatus').style.display = 'block';
-                            document.getElementById('processingStage').textContent = 'Initializing...';
-
-                            // Start polling for status
-                            setTimeout(() => checkPostStatus(result.data.publish_id), 5000);
-
-                            // Reset form
-                            document.getElementById('postForm').reset();
-                            selectedFile = null;
-                            document.getElementById('videoInfo').style.display = 'none';
-                            updateSubmitButton();
-                        } else {
-                            throw new Error('Failed to upload video to TikTok');
-                        }
+                        // Reset form
+                        document.getElementById('postForm').reset();
+                        selectedFile = null;
+                        document.getElementById('videoInfo').style.display = 'none';
+                        updateSubmitButton();
                     } else {
                         throw new Error(result.error || 'Failed to initiate post');
                     }

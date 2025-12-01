@@ -5,7 +5,6 @@ from flask import Flask, render_template, redirect, request, session, jsonify, u
 from flask_login import LoginManager, login_required, current_user
 from dotenv import load_dotenv
 from urllib.parse import urlencode
-from functools import wraps
 from werkzeug.utils import secure_filename
 import time
 import hashlib
@@ -13,7 +12,6 @@ import base64
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
 from models import db, User, TikTokAccount, ScheduledPost, UserVideo
-from google.cloud import scheduler
 import json
 from config import TikTokConfig
 
@@ -138,19 +136,10 @@ TIKTOK_AUTH_URL = 'https://www.tiktok.com/v2/auth/authorize/'
 TIKTOK_TOKEN_URL = 'https://open.tiktokapis.com/v2/oauth/token/'
 TIKTOK_BASE_URL = 'https://open.tiktokapis.com/v2'
 
-# Google Cloud Scheduler configuration
-GOOGLE_CLOUD_PROJECT = os.environ.get('GOOGLE_CLOUD_PROJECT')
-GOOGLE_CLOUD_LOCATION = os.environ.get('GOOGLE_CLOUD_LOCATION', 'us-central1')
-SCHEDULER_SERVICE_URL = os.environ.get('SCHEDULER_SERVICE_URL')
-
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi', 'flv', 'wmv'}
 MAX_CONTENT_LENGTH = 500 * 1024 * 1024
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 @app.route('/')
@@ -1128,12 +1117,11 @@ def get_creator_info():
 @login_required
 def upload_video_only():
     """
-    Upload video file to server without initiating TikTok publish.
+    Upload video file to external API.
     This is used for scheduled posts where we want to save the video
     but publish it later at the scheduled time.
     """
     try:
-        video_path = None
         if request.files and 'video' in request.files:
             # Handle file upload
             file = request.files['video']
@@ -1145,16 +1133,35 @@ def upload_video_only():
                 filename = secure_filename(file.filename)
                 timestamp = str(int(time.time()))
                 filename = f"{timestamp}_{filename}"
-                video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(video_path)
-                logger.info(f"Video file saved to: {video_path}")
 
-                return jsonify({
-                    'success': True,
-                    'video_path': video_path,
-                    'filename': filename,
-                    'message': 'Video uploaded successfully'
-                }), 200
+                # Upload to external API
+                external_api_url = 'https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/upload-file'
+
+                # Prepare the file for upload
+                file.seek(0)  # Reset file pointer to beginning
+                files = {'file': (filename, file.stream, file.content_type)}
+
+                # Send request to external API
+                response = requests.post(external_api_url, files=files)
+
+                if response.status_code == 200:
+                    response_data = response.json()
+                    file_name = response_data.get('fileName')
+
+                    # Construct the URL to access the file
+                    file_url = f"https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/get-file?fileName={file_name}"
+
+                    logger.info(f"Video uploaded to external API: {file_url}")
+
+                    return jsonify({
+                        'success': True,
+                        'fileName': file_name,
+                        'fileUrl': file_url,
+                        'message': 'Video uploaded successfully'
+                    }), 200
+                else:
+                    logger.error(f"External API error: {response.text}")
+                    return jsonify({'error': 'Failed to upload to external API', 'details': response.text}), 500
             else:
                 return jsonify({'error': 'Invalid file type'}), 400
         else:
@@ -1169,9 +1176,8 @@ def upload_video_only():
 @login_required
 def post_video():
     try:
-        video_path = None
+        video_url = None
         if request.files and 'video' in request.files:
-            # Handle file upload
             file = request.files['video']
 
             if file.filename == '':
@@ -1181,9 +1187,24 @@ def post_video():
                 filename = secure_filename(file.filename)
                 timestamp = str(int(time.time()))
                 filename = f"{timestamp}_{filename}"
-                video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(video_path)
-                logger.info(f"Video file saved to: {video_path}")
+
+                external_api_url = 'https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/upload-file'
+
+                file.seek(0)  # Reset file pointer to beginning
+                files = {'file': (filename, file.stream, file.content_type)}
+
+                response = requests.post(external_api_url, files=files)
+
+                if response.status_code == 200:
+                    response_data = response.json()
+                    file_name = response_data.get('fileName')
+
+                    video_url = f"https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/get-file?fileName={file_name}"
+
+                    logger.info(f"Video uploaded to external API: {video_url}")
+                else:
+                    logger.error(f"External API error: {response.text}")
+                    return jsonify({'error': 'Failed to upload to external API', 'details': response.text}), 500
             else:
                 return jsonify({'error': 'Invalid file type'}), 400
 
@@ -1257,24 +1278,12 @@ def post_video():
             'video_cover_timestamp_ms': data.get('video_cover_timestamp_ms', 1000)
         }
 
-        # Prepare source info based on upload type
-        source_type = data.get('source_type', 'PULL_FROM_URL')
+        final_video_url = video_url if video_url else data.get('video_url')
 
-        if source_type == 'PULL_FROM_URL':
-            source_info = {
-                'source': 'PULL_FROM_URL',
-                'video_url': data.get('video_url')
-            }
-        else:
-            # FILE_UPLOAD
-            video_size = data.get('video_size', 0)
-            # For single chunk upload, chunk_size must equal video_size
-            source_info = {
-                'source': 'FILE_UPLOAD',
-                'video_size': video_size,
-                'chunk_size': video_size,  # Must match video_size for single chunk
-                'total_chunk_count': 1
-            }
+        source_info = {
+            'source': 'PULL_FROM_URL',
+            'video_url': final_video_url
+        }
 
         request_body = {
             'post_info': post_info,
@@ -1286,7 +1295,8 @@ def post_video():
     try:
         logger.info(f"TikTok video init request", extra={'extra_fields': {
             'privacy_level': post_info.get('privacy_level'),
-            'source_type': source_type,
+            'source_type': 'PULL_FROM_URL',
+            'video_url': final_video_url,
             'account_id': tiktok_account_id
         }})
         response = requests.post(
@@ -1298,13 +1308,13 @@ def post_video():
         logger.info(f"TikTok video init response status: {response.status_code}")
         response_data = response.json()
         logger.info(f"TikTok video init response: {response_data}")
-        
+
         # Check if the response contains an error
         if response.status_code != 200:
             logger.error(f"TikTok API error: {response_data}")
-            
+
             # If token is invalid, try to refresh it once
-            if ('error' in response_data and 
+            if ('error' in response_data and
                 response_data['error'].get('code') == 'access_token_invalid'):
                 logger.info("Access token invalid, attempting refresh...")
                 refreshed = refresh_tiktok_token(tiktok_account)
@@ -1340,19 +1350,6 @@ def post_video():
                     'status_code': response.status_code,
                     'response': response_data
                 }), response.status_code
-        
-        # For FILE_UPLOAD, ensure upload_url is present in the response
-        if source_type == 'FILE_UPLOAD':
-            if 'data' not in response_data or 'upload_url' not in response_data.get('data', {}):
-                logger.error(f"Missing upload_url in TikTok response: {response_data}")
-                return jsonify({
-                    'error': 'TikTok did not provide upload_url',
-                    'response': response_data
-                }), 400
-
-        # Add video_path to response if file was uploaded
-        if video_path:
-            response_data['video_path'] = video_path
 
         return jsonify(response_data)
     except Exception as e:
@@ -1516,65 +1513,6 @@ def register_user():
         return jsonify({'error': 'Failed to register user', 'message': str(e)}), 500
 
 
-def create_scheduler_job(scheduled_post_id, scheduled_time):
-    """Create a Google Cloud Scheduler job for a scheduled post"""
-    try:
-        # Check required environment variables
-        if not GOOGLE_CLOUD_PROJECT:
-            logger.error("GOOGLE_CLOUD_PROJECT environment variable not set")
-            return None
-        
-        if not SCHEDULER_SERVICE_URL:
-            logger.error("SCHEDULER_SERVICE_URL environment variable not set")
-            return None
-            
-        client = scheduler.CloudSchedulerClient()
-        parent = f"projects/{GOOGLE_CLOUD_PROJECT}/locations/{GOOGLE_CLOUD_LOCATION}"
-        
-        # Create unique job name
-        job_name = f"{parent}/jobs/scheduled-post-{scheduled_post_id}"
-        
-        # Convert datetime to cron expression
-        cron_expression = f"{scheduled_time.minute} {scheduled_time.hour} {scheduled_time.day} {scheduled_time.month} *"
-        
-        # Job payload - will call our webhook endpoint
-        payload = {
-            'scheduled_post_id': scheduled_post_id
-        }
-        
-        job = {
-            'name': job_name,
-            'http_target': {
-                'uri': f"{SCHEDULER_SERVICE_URL}/api/scheduled/execute",
-                'http_method': scheduler.HttpMethod.POST,
-                'headers': {'Content-Type': 'application/json'},
-                'body': json.dumps(payload).encode('utf-8')
-            },
-            'schedule': cron_expression,
-            'time_zone': 'UTC'
-        }
-        
-        logger.info(f"Creating scheduler job: {job_name} with schedule: {cron_expression}")
-        response = client.create_job(parent=parent, job=job)
-        logger.info(f"Scheduler job created successfully: {response.name}")
-        return response.name
-        
-    except Exception as e:
-        logger.error(f"Failed to create scheduler job for post {scheduled_post_id}: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return None
-
-
-def delete_scheduler_job(job_name):
-    """Delete a Google Cloud Scheduler job"""
-    try:
-        client = scheduler.CloudSchedulerClient()
-        client.delete_job(name=job_name)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to delete scheduler job: {e}")
-        return False
 
 
 @app.route('/api/scheduled/create', methods=['POST'])
@@ -1633,27 +1571,13 @@ def create_scheduled_post():
         
         db.session.add(scheduled_post)
         db.session.commit()
-        
-        # Create Google Cloud Scheduler job (optional)
-        job_created = False
-        if GOOGLE_CLOUD_PROJECT and SCHEDULER_SERVICE_URL:
-            try:
-                job_name = create_scheduler_job(scheduled_post.id, scheduled_time)
-                if job_name:
-                    job_created = True
-                    logger.info(f"Scheduler job created: {job_name}")
-                else:
-                    logger.warning(f"Failed to create scheduler job for post {scheduled_post.id}")
-            except Exception as e:
-                logger.warning(f"Scheduler not available: {e}")
-        else:
-            logger.info("Google Cloud Scheduler not configured - posts will be stored but not automatically executed")
-        
+
+        logger.info(f"Scheduled post created with ID: {scheduled_post.id} for time: {scheduled_time}")
+
         return jsonify({
             'success': True,
             'scheduled_post_id': scheduled_post.id,
-            'scheduler_job_created': job_created,
-            'message': 'Scheduled post created successfully' + (' with automatic scheduling' if job_created else ' (manual execution required)')
+            'message': 'Scheduled post created successfully'
         }), 201
         
     except ValueError as e:
@@ -1696,27 +1620,23 @@ def list_scheduled_posts():
 @app.route('/api/scheduled/<int:post_id>', methods=['DELETE'])
 @login_required
 def delete_scheduled_post(post_id):
-    """Delete a scheduled post and its scheduler job"""
+    """Delete a scheduled post"""
     user_id = current_user.id
-    
-    
+
     try:
         scheduled_post = ScheduledPost.query.filter_by(id=post_id, user_id=user_id).first()
-        
+
         if not scheduled_post:
             return jsonify({'error': 'Scheduled post not found'}), 404
-        
-        # Delete scheduler job if exists
-        if GOOGLE_CLOUD_PROJECT:
-            job_name = f"projects/{GOOGLE_CLOUD_PROJECT}/locations/{GOOGLE_CLOUD_LOCATION}/jobs/scheduled-post-{post_id}"
-            delete_scheduler_job(job_name)
-        
+
         # Delete from database
         db.session.delete(scheduled_post)
         db.session.commit()
-        
+
+        logger.info(f"Scheduled post {post_id} deleted successfully")
+
         return jsonify({'success': True, 'message': 'Scheduled post deleted successfully'})
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to delete scheduled post', 'message': str(e)}), 500
@@ -1724,128 +1644,171 @@ def delete_scheduled_post(post_id):
 
 @app.route('/api/scheduled/execute', methods=['POST'])
 def execute_scheduled_post():
-    """Webhook endpoint called by Google Cloud Scheduler to execute a scheduled post"""
-    data = request.get_json()
-    scheduled_post_id = data.get('scheduled_post_id')
-    
-    if not scheduled_post_id:
-        return jsonify({'error': 'Missing scheduled_post_id'}), 400
-    
+    """Execute all pending scheduled posts for user 18 that have passed their scheduled time"""
+
+    USER_ID = 18
+    current_time = datetime.utcnow()
+
     try:
-        scheduled_post = ScheduledPost.query.get(scheduled_post_id)
-        
-        if not scheduled_post:
-            return jsonify({'error': 'Scheduled post not found'}), 404
-        
-        if scheduled_post.status != 'pending':
-            return jsonify({'error': 'Post is not in pending status'}), 400
-        
-        # Update status to processing
-        scheduled_post.status = 'processing'
-        db.session.commit()
-        
-        # Get user's access token
-        user = User.query.get(scheduled_post.user_id)
-        if not user or not user.access_token:
-            scheduled_post.status = 'failed'
-            scheduled_post.error_message = 'User access token not found'
-            db.session.commit()
-            return jsonify({'error': 'User access token not found'}), 400
-        
-        # Prepare TikTok API request
-        headers = {
-            'Authorization': f'Bearer {user.access_token}',
-            'Content-Type': 'application/json; charset=UTF-8'
-        }
-        
-        post_info = {
-            'title': scheduled_post.title,
-            'privacy_level': scheduled_post.privacy_level,
-            'disable_duet': scheduled_post.disable_duet,
-            'disable_comment': scheduled_post.disable_comment,
-            'disable_stitch': scheduled_post.disable_stitch,
-            'video_cover_timestamp_ms': scheduled_post.video_cover_timestamp_ms
-        }
-        
-        # Determine source type
-        if scheduled_post.video_url:
-            source_info = {
-                'source': 'PULL_FROM_URL',
-                'video_url': scheduled_post.video_url
+        # Query all pending scheduled posts for user 18 where scheduled_time has passed
+        pending_posts = ScheduledPost.query.filter(
+            ScheduledPost.user_id == USER_ID,
+            ScheduledPost.status == 'pending',
+            ScheduledPost.scheduled_time <= current_time
+        ).all()
+
+        if not pending_posts:
+            logger.info(f"No pending posts found for user {USER_ID} that are due for execution")
+            return jsonify({
+                'success': True,
+                'message': 'No pending posts to execute',
+                'posts_processed': 0
+            })
+
+        logger.info(f"Found {len(pending_posts)} pending posts to execute for user {USER_ID}")
+
+        results = []
+        successful_posts = 0
+        failed_posts = 0
+
+        for scheduled_post in pending_posts:
+            post_result = {
+                'post_id': scheduled_post.id,
+                'title': scheduled_post.title,
+                'scheduled_time': scheduled_post.scheduled_time.isoformat()
             }
-        elif scheduled_post.video_path and os.path.exists(scheduled_post.video_path):
-            video_size = os.path.getsize(scheduled_post.video_path)
-            source_info = {
-                'source': 'FILE_UPLOAD',
-                'video_size': video_size,
-                'chunk_size': video_size,
-                'total_chunk_count': 1
-            }
-        else:
-            scheduled_post.status = 'failed'
-            scheduled_post.error_message = 'No valid video source found'
-            db.session.commit()
-            return jsonify({'error': 'No valid video source found'}), 400
-        
-        request_body = {
-            'post_info': post_info,
-            'source_info': source_info
-        }
-        
-        # Make TikTok API request
-        response = requests.post(
-            f'{TIKTOK_BASE_URL}/post/publish/video/init/',
-            headers=headers,
-            json=request_body
-        )
-        
-        response_data = response.json()
-        
-        if response.status_code == 200 and 'data' in response_data:
-            # If file upload, handle the upload process
-            if scheduled_post.video_path and 'upload_url' in response_data['data']:
-                upload_url = response_data['data']['upload_url']
-                
-                # Upload video file
-                with open(scheduled_post.video_path, 'rb') as video_file:
-                    video_data = video_file.read()
-                    
-                upload_headers = {
-                    'Content-Type': 'video/mp4',
-                    'Content-Range': f'bytes 0-{len(video_data)-1}/{len(video_data)}'
-                }
-                
-                upload_response = requests.put(upload_url, data=video_data, headers=upload_headers)
-                
-                if upload_response.status_code != 200:
-                    scheduled_post.status = 'failed'
-                    scheduled_post.error_message = 'Failed to upload video file'
-                    db.session.commit()
-                    return jsonify({'error': 'Failed to upload video file'}), 500
-            
-            # Update post as completed
-            scheduled_post.status = 'completed'
-            scheduled_post.posted_at = datetime.utcnow()
-            scheduled_post.post_id = response_data['data'].get('publish_id')
-            db.session.commit()
-            
-            return jsonify({'success': True, 'message': 'Post published successfully'})
-        
-        else:
-            scheduled_post.status = 'failed'
-            scheduled_post.error_message = response_data.get('error', {}).get('message', 'Unknown error')
-            db.session.commit()
-            return jsonify({'error': 'Failed to publish post', 'details': response_data}), 400
-            
-    except Exception as e:
-        if scheduled_post_id:
-            scheduled_post = ScheduledPost.query.get(scheduled_post_id)
-            if scheduled_post:
-                scheduled_post.status = 'failed'
-                scheduled_post.error_message = str(e)
+
+            try:
+                # Update status to processing
+                scheduled_post.status = 'processing'
                 db.session.commit()
-        
-        return jsonify({'error': 'Failed to execute scheduled post', 'message': str(e)}), 500
+
+                # Get TikTok account access token
+                tiktok_account = TikTokAccount.query.filter_by(
+                    id=scheduled_post.tiktok_account_id,
+                    user_id=USER_ID,
+                    is_active=True
+                ).first()
+
+                if not tiktok_account or not tiktok_account.access_token:
+                    scheduled_post.status = 'failed'
+                    scheduled_post.error_message = 'TikTok account not found or access token missing'
+                    db.session.commit()
+                    post_result['status'] = 'failed'
+                    post_result['error'] = 'TikTok account not found or access token missing'
+                    failed_posts += 1
+                    results.append(post_result)
+                    continue
+
+                # Check if token is expired and refresh if needed
+                if tiktok_account.token_expires_at and tiktok_account.token_expires_at < datetime.utcnow():
+                    logger.info(f"Token expired for account {tiktok_account.username}, attempting refresh...")
+                    refreshed = refresh_tiktok_token(tiktok_account)
+                    if not refreshed:
+                        scheduled_post.status = 'failed'
+                        scheduled_post.error_message = 'Access token expired and refresh failed'
+                        db.session.commit()
+                        post_result['status'] = 'failed'
+                        post_result['error'] = 'Access token expired and refresh failed'
+                        failed_posts += 1
+                        results.append(post_result)
+                        continue
+
+                # Prepare TikTok API request
+                headers = {
+                    'Authorization': f'Bearer {tiktok_account.access_token}',
+                    'Content-Type': 'application/json; charset=UTF-8'
+                }
+
+                post_info = {
+                    'title': scheduled_post.title,
+                    'privacy_level': scheduled_post.privacy_level,
+                    'disable_duet': scheduled_post.disable_duet,
+                    'disable_comment': scheduled_post.disable_comment,
+                    'disable_stitch': scheduled_post.disable_stitch,
+                    'video_cover_timestamp_ms': scheduled_post.video_cover_timestamp_ms
+                }
+
+                # Use video_url (from external API)
+                if scheduled_post.video_url:
+                    source_info = {
+                        'source': 'PULL_FROM_URL',
+                        'video_url': scheduled_post.video_url
+                    }
+                else:
+                    scheduled_post.status = 'failed'
+                    scheduled_post.error_message = 'No video URL found'
+                    db.session.commit()
+                    post_result['status'] = 'failed'
+                    post_result['error'] = 'No video URL found'
+                    failed_posts += 1
+                    results.append(post_result)
+                    continue
+
+                request_body = {
+                    'post_info': post_info,
+                    'source_info': source_info
+                }
+
+                # Make TikTok API request
+                logger.info(f"Posting to TikTok for scheduled post {scheduled_post.id}")
+                response = requests.post(
+                    f'{TIKTOK_BASE_URL}/post/publish/video/init/',
+                    headers=headers,
+                    json=request_body
+                )
+
+                response_data = response.json()
+
+                if response.status_code == 200 and 'data' in response_data:
+                    # Update post as completed
+                    scheduled_post.status = 'completed'
+                    scheduled_post.posted_at = datetime.utcnow()
+                    scheduled_post.post_id = response_data['data'].get('publish_id')
+                    db.session.commit()
+
+                    post_result['status'] = 'completed'
+                    post_result['publish_id'] = scheduled_post.post_id
+                    successful_posts += 1
+                    logger.info(f"Successfully posted scheduled post {scheduled_post.id}")
+                else:
+                    scheduled_post.status = 'failed'
+                    error_message = response_data.get('error', {}).get('message', 'Unknown error')
+                    scheduled_post.error_message = error_message
+                    db.session.commit()
+
+                    post_result['status'] = 'failed'
+                    post_result['error'] = error_message
+                    failed_posts += 1
+                    logger.error(f"Failed to post scheduled post {scheduled_post.id}: {error_message}")
+
+                results.append(post_result)
+
+            except Exception as post_error:
+                scheduled_post.status = 'failed'
+                scheduled_post.error_message = str(post_error)
+                db.session.commit()
+
+                post_result['status'] = 'failed'
+                post_result['error'] = str(post_error)
+                failed_posts += 1
+                results.append(post_result)
+                logger.error(f"Exception while processing scheduled post {scheduled_post.id}: {str(post_error)}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Processed {len(pending_posts)} posts',
+            'posts_processed': len(pending_posts),
+            'successful': successful_posts,
+            'failed': failed_posts,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error in execute_scheduled_post: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to execute scheduled posts', 'message': str(e)}), 500
 
 
 from auth import auth_bp
