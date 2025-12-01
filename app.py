@@ -1124,6 +1124,47 @@ def get_creator_info():
         return jsonify({'error': 'Failed to fetch creator info', 'message': str(e)}), 500
 
 
+@app.route('/api/upload/video-only', methods=['POST'])
+@login_required
+def upload_video_only():
+    """
+    Upload video file to server without initiating TikTok publish.
+    This is used for scheduled posts where we want to save the video
+    but publish it later at the scheduled time.
+    """
+    try:
+        video_path = None
+        if request.files and 'video' in request.files:
+            # Handle file upload
+            file = request.files['video']
+
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                timestamp = str(int(time.time()))
+                filename = f"{timestamp}_{filename}"
+                video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(video_path)
+                logger.info(f"Video file saved to: {video_path}")
+
+                return jsonify({
+                    'success': True,
+                    'video_path': video_path,
+                    'filename': filename,
+                    'message': 'Video uploaded successfully'
+                }), 200
+            else:
+                return jsonify({'error': 'Invalid file type'}), 400
+        else:
+            return jsonify({'error': 'No video file provided'}), 400
+
+    except Exception as e:
+        logger.error(f"Error uploading video: {str(e)}")
+        return jsonify({'error': 'Failed to upload video', 'message': str(e)}), 500
+
+
 @app.route('/api/post/video', methods=['POST'])
 @login_required
 def post_video():
@@ -1807,33 +1848,18 @@ def execute_scheduled_post():
         return jsonify({'error': 'Failed to execute scheduled post', 'message': str(e)}), 500
 
 
-# Register blueprints
 from auth import auth_bp
 app.register_blueprint(auth_bp)
 
-# Register compliance blueprint for review mode
 from api_compliance import compliance_bp
 app.register_blueprint(compliance_bp)
 
-# Register display API blueprint
 from display_api import display_bp
 app.register_blueprint(display_bp)
 
 if __name__ == '__main__':
-    # Database is already initialized in init_app() above
     port = int(os.environ.get('PORT', 8080))
     
-    # Log startup information
-    logger.info("="*60)
-    logger.info("Starting Postify TikTok Application")
-    logger.info(f"Port: {port}")
-    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
-    logger.info(f"Database URL: {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...")
-    logger.info(f"TikTok Client Key: {TIKTOK_CLIENT_KEY}")
-    logger.info(f"TikTok Redirect URI: {TIKTOK_REDIRECT_URI}")
-    logger.info("="*60)
-    
-    # Force flush
     sys.stdout.flush()
     sys.stderr.flush()
     
