@@ -1171,6 +1171,92 @@ def upload_video_only():
         return jsonify({'error': 'Failed to upload video', 'message': str(e)}), 500
 
 
+@app.route('/api/watermark/apply', methods=['POST'])
+@login_required
+def apply_watermark():
+    """
+    Apply watermark to a video file using the video_watermark module.
+    """
+    try:
+        # Import the watermark function
+        from video_watermark import add_watermark
+
+        # Check if video file is provided
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file provided'}), 400
+
+        video_file = request.files['video']
+
+        if video_file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        # Get parameters from request
+        logo_path = request.form.get('logo_path', 'images/logo.png')
+        start_time = float(request.form.get('start_time', 3))
+        fade_duration = float(request.form.get('fade_duration', 1.0))
+        logo_scale = float(request.form.get('logo_scale', 0.3))
+        position = request.form.get('position', 'bottom_center')
+        margin = int(request.form.get('margin', 250))
+
+        # Save the uploaded video to a temporary location
+        temp_dir = os.path.join(os.getcwd(), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Generate unique filename
+        timestamp = str(int(time.time()))
+        input_filename = secure_filename(video_file.filename)
+        input_path = os.path.join(temp_dir, f"{timestamp}_{input_filename}")
+
+        # Save the uploaded file
+        video_file.save(input_path)
+
+        logger.info(f"Applying watermark to video: {input_path}")
+
+        # Apply watermark
+        output_path = add_watermark(
+            video_path=input_path,
+            output_path=None,  # Will generate automatically
+            logo_path=logo_path,
+            start_time=start_time,
+            fade_duration=fade_duration,
+            logo_scale=logo_scale,
+            position=position,
+            margin=margin
+        )
+
+        if not output_path or not os.path.exists(output_path):
+            # Clean up temp file
+            if os.path.exists(input_path):
+                os.remove(input_path)
+            return jsonify({'error': 'Failed to apply watermark'}), 500
+
+        logger.info(f"Watermark applied successfully: {output_path}")
+
+        # Read the watermarked video file
+        with open(output_path, 'rb') as f:
+            watermarked_video = f.read()
+
+        # Clean up temporary files
+        if os.path.exists(input_path):
+            os.remove(input_path)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+
+        # Return the watermarked video as a binary response
+        from flask import Response
+        return Response(
+            watermarked_video,
+            mimetype='video/mp4',
+            headers={
+                'Content-Disposition': f'attachment; filename=watermarked_{input_filename}'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error applying watermark: {str(e)}")
+        return jsonify({'error': 'Failed to apply watermark', 'message': str(e)}), 500
+
+
 @app.route('/api/post/video', methods=['POST'])
 @login_required
 def post_video():

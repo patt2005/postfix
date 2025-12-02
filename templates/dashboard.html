@@ -869,6 +869,20 @@
                     </div>
                 </div>
 
+                <!-- Watermark Toggle -->
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="watermarkToggle" name="add_watermark">
+                        <span>Add Watermark</span>
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        <i class="fas fa-info-circle"></i> Apply logo watermark to your video with fade-in animation
+                    </small>
+                    <div id="watermarkProgress" style="display: none; margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 6px; font-size: 14px;">
+                        <i class="fas fa-spinner fa-spin"></i> Applying watermark...
+                    </div>
+                </div>
+
                 <!-- Title/Caption -->
                 <div class="form-group">
                     <label for="title" class="required">Caption</label>
@@ -1546,6 +1560,19 @@
                 updateSubmitButton();
             });
 
+            // Watermark toggle
+            const watermarkToggle = document.getElementById('watermarkToggle');
+            watermarkToggle.addEventListener('change', async () => {
+                if (watermarkToggle.checked && selectedFile) {
+                    // Apply watermark when toggle is turned on
+                    await applyWatermark();
+                } else if (!watermarkToggle.checked && selectedFile) {
+                    // If toggle is turned off, reload original video
+                    // Note: This would require storing the original file separately
+                    showNotification('Watermark removed. Please re-upload video to apply watermark again.', 'info', 3000);
+                }
+            });
+
             // User consent
             document.getElementById('userConsent').addEventListener('change', updateSubmitButton);
 
@@ -1740,6 +1767,83 @@
             });
 
             document.getElementById('videoInfo').style.display = 'block';
+
+            // Check if watermark toggle is enabled and apply watermark
+            await checkAndApplyWatermark();
+        }
+
+        // Check if watermark should be applied and apply it
+        async function checkAndApplyWatermark() {
+            const watermarkToggle = document.getElementById('watermarkToggle');
+            if (!watermarkToggle.checked || !selectedFile) {
+                return;
+            }
+
+            await applyWatermark();
+        }
+
+        // Apply watermark to the selected video
+        async function applyWatermark() {
+            if (!selectedFile) {
+                showNotification('Please select a video first', 'warning');
+                return;
+            }
+
+            const progressDiv = document.getElementById('watermarkProgress');
+            const videoPreview = document.getElementById('videoPreview');
+
+            try {
+                // Show progress
+                progressDiv.style.display = 'block';
+
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('video', selectedFile);
+                formData.append('logo_path', 'images/logo.png');
+                formData.append('start_time', 3);
+                formData.append('fade_duration', 1.0);
+                formData.append('logo_scale', 0.3);
+                formData.append('position', 'bottom_center');
+                formData.append('margin', 250);
+
+                // Call backend to apply watermark
+                const response = await fetch('/api/watermark/apply', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to apply watermark');
+                }
+
+                // Get the watermarked video as a blob
+                const blob = await response.blob();
+
+                // Create a new File object from the blob
+                const watermarkedFile = new File([blob], selectedFile.name.replace(/(\.\w+)$/, '_watermarked$1'), {
+                    type: selectedFile.type
+                });
+
+                // Update selectedFile to the watermarked version
+                selectedFile = watermarkedFile;
+
+                // Update the video preview with the watermarked version
+                const url = URL.createObjectURL(blob);
+                videoPreview.src = url;
+
+                // Update file size display
+                document.getElementById('fileSize').textContent = formatFileSize(watermarkedFile.size);
+
+                // Hide progress and show success
+                progressDiv.style.display = 'none';
+                showNotification('Watermark applied successfully!', 'success', 3000);
+
+            } catch (error) {
+                progressDiv.style.display = 'none';
+                showNotification(`Failed to apply watermark: ${error.message}`, 'error');
+                console.error('Watermark error:', error);
+            }
         }
 
         // Update commercial content warning
@@ -2173,7 +2277,6 @@
                     return;
                 }
 
-                // Validate that scheduled time is in the future
                 const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
                 const now = new Date();
 
@@ -2186,7 +2289,6 @@
                 }
             }
 
-            // Show appropriate status message based on whether post is scheduled
             if (scheduleToggle.checked) {
                 const scheduleDate = document.getElementById('scheduleDate').value;
                 const scheduleTime = document.getElementById('scheduleTime').value;
@@ -2222,10 +2324,6 @@
                     user_consent: formData.get('user_consent')
                 };
 
-                // Note: Don't add schedule info to initial upload metadata
-                // We'll handle scheduling separately after upload
-
-                // Add commercial content info if applicable
                 if (formData.get('commercial_content')) {
                     metadata.content_disclosure = {
                         your_brand: !!formData.get('your_brand'),
@@ -2233,7 +2331,6 @@
                     };
                 }
 
-                // Add metadata to form data
                 formData.append('metadata', JSON.stringify(metadata));
 
                 // Check if this is a scheduled post
