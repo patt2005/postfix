@@ -488,6 +488,7 @@
         .commercial-toggle {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 15px;
             margin-bottom: 20px;
             padding: 15px;
@@ -1054,16 +1055,17 @@
                 <!-- Commercial Content Disclosure -->
                 <div class="commercial-content-section">
                     <div class="commercial-toggle">
+                        <div class="interaction-label">
+                            <i class="fas fa-bullhorn"></i>
+                            <div>
+                                <div style="font-weight: 600;">Content Disclosure Setting</div>
+                                <small style="color: #666;">Indicate whether this content promotes yourself, a brand, product or service</small>
+                                <small style="color: #999; display: block; margin-top: 3px;">This feature is turned off by default</small>
+                            </div>
+                        </div>
                         <div class="interaction-toggle">
                             <input type="checkbox" id="commercialToggle" name="commercial_content">
                             <span class="interaction-toggle-slider"></span>
-                        </div>
-                        <div>
-                            <div style="font-weight: 600;">Content Disclosure Setting</div>
-                            <div style="font-size: 13px; color: #666;">Indicate whether this content promotes yourself,
-                                a brand, product or service</div>
-                            <div style="font-size: 11px; color: #999; margin-top: 3px;">This feature is turned off by
-                                default</div>
                         </div>
                     </div>
 
