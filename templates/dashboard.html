@@ -419,6 +419,8 @@
             position: relative;
             width: 50px;
             height: 26px;
+            flex-shrink: 0;
+            margin-left: auto;
         }
 
         .interaction-toggle input {
@@ -602,6 +604,45 @@
         .video-preview {
             width: 100%;
             height: auto;
+        }
+
+        .watermark-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+            animation: fadeInSlide 0.5s ease-out;
+        }
+
+        .watermark-indicator.show {
+            display: flex;
+        }
+
+        @keyframes fadeInSlide {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .video-info-watermarked {
+            border: 2px solid #4facfe;
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.3);
+            transition: all 0.3s ease;
         }
 
         .file-upload-area {
@@ -855,14 +896,23 @@
                             seconds</p>
                     </div>
                     <div id="videoInfo" style="display: none; margin-top: 15px;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <video id="videoPreview" controls style="max-width: 300px; border-radius: 8px;"></video>
+                        <div style="display: flex; align-items: center; gap: 15px; position: relative;">
+                            <div style="position: relative;">
+                                <video id="videoPreview" controls style="max-width: 300px; border-radius: 8px;"></video>
+                                <div id="watermarkIndicator" class="watermark-indicator">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Watermark Applied</span>
+                                </div>
+                            </div>
                             <div>
                                 <p><strong>File:</strong> <span id="fileName"></span></p>
                                 <p><strong>Size:</strong> <span id="fileSize"></span></p>
                                 <p><strong>Duration:</strong> <span id="videoDuration"></span> seconds</p>
                                 <p id="durationWarning" style="color: red; display: none;">
                                     <i class="fas fa-exclamation-circle"></i> Video exceeds maximum duration!
+                                </p>
+                                <p id="watermarkStatus" style="color: #4facfe; display: none; margin-top: 10px;">
+                                    <i class="fas fa-magic"></i> <strong>Watermark added!</strong> Preview your video above
                                 </p>
                             </div>
                         </div>
@@ -1567,8 +1617,24 @@
                     // Apply watermark when toggle is turned on
                     await applyWatermark();
                 } else if (!watermarkToggle.checked && selectedFile) {
-                    // If toggle is turned off, reload original video
-                    // Note: This would require storing the original file separately
+                    // If toggle is turned off, hide watermark indicators
+                    const watermarkIndicator = document.getElementById('watermarkIndicator');
+                    const watermarkStatus = document.getElementById('watermarkStatus');
+                    const videoPreview = document.getElementById('videoPreview');
+
+                    if (watermarkIndicator) {
+                        watermarkIndicator.classList.remove('show');
+                    }
+
+                    if (watermarkStatus) {
+                        watermarkStatus.style.display = 'none';
+                    }
+
+                    if (videoPreview) {
+                        videoPreview.style.border = '';
+                        videoPreview.style.boxShadow = '';
+                    }
+
                     showNotification('Watermark removed. Please re-upload video to apply watermark again.', 'info', 3000);
                 }
             });
@@ -1713,6 +1779,24 @@
         async function handleFileSelect(file) {
             selectedFile = file;
 
+            // Reset watermark indicators for new file
+            const watermarkIndicator = document.getElementById('watermarkIndicator');
+            const watermarkStatus = document.getElementById('watermarkStatus');
+            const videoPreview = document.getElementById('videoPreview');
+
+            if (watermarkIndicator) {
+                watermarkIndicator.classList.remove('show');
+            }
+
+            if (watermarkStatus) {
+                watermarkStatus.style.display = 'none';
+            }
+
+            if (videoPreview) {
+                videoPreview.style.border = '';
+                videoPreview.style.boxShadow = '';
+            }
+
             // Display file info
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
@@ -1738,7 +1822,6 @@
             }
 
             // Create video preview
-            const videoPreview = document.getElementById('videoPreview');
             const url = URL.createObjectURL(file);
             videoPreview.src = url;
 
@@ -1835,9 +1918,31 @@
                 // Update file size display
                 document.getElementById('fileSize').textContent = formatFileSize(watermarkedFile.size);
 
+                // Show watermark indicator badge
+                const watermarkIndicator = document.getElementById('watermarkIndicator');
+                const watermarkStatus = document.getElementById('watermarkStatus');
+                const videoInfo = document.getElementById('videoInfo');
+
+                if (watermarkIndicator) {
+                    watermarkIndicator.classList.add('show');
+                }
+
+                if (watermarkStatus) {
+                    watermarkStatus.style.display = 'block';
+                }
+
+                // Add visual highlight to video preview
+                if (videoPreview) {
+                    videoPreview.style.border = '3px solid #4facfe';
+                    videoPreview.style.boxShadow = '0 0 20px rgba(79, 172, 254, 0.4)';
+
+                    // Reload the video to ensure it displays from the beginning
+                    videoPreview.load();
+                }
+
                 // Hide progress and show success
                 progressDiv.style.display = 'none';
-                showNotification('Watermark applied successfully!', 'success', 3000);
+                showNotification('Watermark applied successfully! Check the preview above', 'success', 4000);
 
             } catch (error) {
                 progressDiv.style.display = 'none';
@@ -2333,7 +2438,6 @@
 
                 formData.append('metadata', JSON.stringify(metadata));
 
-                // Check if this is a scheduled post
                 const scheduleToggle = document.getElementById('scheduleToggle');
                 if (scheduleToggle.checked) {
                     // Scheduled post - only save video, don't publish to TikTok yet
