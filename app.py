@@ -160,7 +160,7 @@ def tiktok_verification():
 
 
 @app.route('/tiktokRntW7OSMnWZtEoXs3c8Aqg0YeoB1wSGF.txt')
-def tiktok_verification():
+def test_2_verif():
     """Serve TikTok domain verification file"""
     return send_from_directory('.', 'tiktokRntW7OSMnWZtEoXs3c8Aqg0YeoB1wSGF.txt')
 
