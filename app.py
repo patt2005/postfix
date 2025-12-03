@@ -159,6 +159,12 @@ def tiktok_verification():
     return send_from_directory('.', 'tiktokA4mLr5O0KsGFjXAezX2UN2qvTYKKvIVu.txt')
 
 
+@app.route('/tiktokRntW7OSMnWZtEoXs3c8Aqg0YeoB1wSGF.txt')
+def tiktok_verification():
+    """Serve TikTok domain verification file"""
+    return send_from_directory('.', 'tiktokRntW7OSMnWZtEoXs3c8Aqg0YeoB1wSGF.txt')
+
+
 @app.route('/documentation')
 def documentation():
     return render_template('documentation.html')
