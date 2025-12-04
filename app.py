@@ -176,7 +176,15 @@ def privacy_policy():
 
 @app.route('/download')
 def download_page():
-    return render_template('instructions_page.html')
+    user_agent = request.headers.get('User-Agent', '').lower()
+
+    is_tiktok_app = 'tiktok' in user_agent or 'musical_ly' in user_agent
+
+    if is_tiktok_app:
+        return render_template('instructions_page.html')
+    else:
+        app_store_url = 'https://apps.apple.com/us/app/soframe-ai-video-generator/id6755539400?ppid=64120fe2-3c04-4b37-a0f7-bb8899a60b82'
+        return redirect(app_store_url)
 
 @app.route('/terms-of-service')
 def terms_of_service():
