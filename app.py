@@ -176,7 +176,7 @@ def privacy_policy():
 
 @app.route('/download')
 def download_page():
-    return render_template('download_page.html')
+    return render_template('instructions_page.html')
 
 @app.route('/terms-of-service')
 def terms_of_service():
