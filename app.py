@@ -174,6 +174,9 @@ def documentation():
 def privacy_policy():
     return render_template('privacy-policy.html')
 
+@app.route('/download')
+def privacy_policy():
+    return render_template('download_page.html')
 
 @app.route('/terms-of-service')
 def terms_of_service():
