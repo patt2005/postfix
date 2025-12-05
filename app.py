@@ -1208,12 +1208,6 @@ def apply_watermark():
             return jsonify({'error': 'No file selected'}), 400
 
         # Get parameters from request
-        logo_path = request.form.get('logo_path', 'images/logo.png')
-        start_time = float(request.form.get('start_time', 3))
-        fade_duration = float(request.form.get('fade_duration', 1.0))
-        logo_scale = float(request.form.get('logo_scale', 0.3))
-        position = request.form.get('position', 'bottom_center')
-        margin = int(request.form.get('margin', 250))
 
         # Save the uploaded video to a temporary location
         temp_dir = os.path.join(os.getcwd(), 'temp')
@@ -1229,16 +1223,15 @@ def apply_watermark():
 
         logger.info(f"Applying watermark to video: {input_path}")
 
-        # Apply watermark
         output_path = add_watermark(
             video_path=input_path,
-            output_path=None,  # Will generate automatically
-            logo_path=logo_path,
-            start_time=start_time,
-            fade_duration=fade_duration,
-            logo_scale=logo_scale,
-            position=position,
-            margin=margin
+            output_path=None,
+            logo_path="images/logo.png",
+            end_time=4,
+            fade_duration=1.0,
+            logo_scale=0.3,
+            position="bottom_center",
+            margin=250
         )
 
         if not output_path or not os.path.exists(output_path):

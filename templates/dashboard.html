@@ -1884,12 +1884,6 @@
                 // Prepare form data
                 const formData = new FormData();
                 formData.append('video', selectedFile);
-                formData.append('logo_path', 'images/logo.png');
-                formData.append('start_time', 0);
-                formData.append('fade_duration', 1.0);
-                formData.append('logo_scale', 0.3);
-                formData.append('position', 'bottom_center');
-                formData.append('margin', 250);
 
                 // Call backend to apply watermark
                 const response = await fetch('/api/watermark/apply', {
