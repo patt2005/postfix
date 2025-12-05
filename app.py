@@ -377,7 +377,7 @@ def add_tiktok_account():
     return redirect(url_for('auth_tiktok'))
 
 
-@app.route('/auth/tiktok/callback')
+@app.route('/callback')
 def tiktok_callback():
     """Handle TikTok OAuth callback
     
