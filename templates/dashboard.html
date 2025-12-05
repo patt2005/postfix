@@ -1161,6 +1161,45 @@
                 <div id="pollAttempt" style="margin-top: 10px; font-size: 12px; color: #999;"></div>
             </div>
         </div>
+
+        <!-- Calendar Section for Scheduled Posts -->
+        <div class="calendar-section" style="margin-top: 30px; padding: 30px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+            <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-calendar-alt"></i> Scheduled Posts Calendar
+            </h2>
+
+            <div id="calendarContainer">
+                <!-- Calendar Navigation -->
+                <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <button id="prevMonth" class="btn btn-secondary" style="padding: 10px 20px;">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <h3 id="currentMonthYear" style="margin: 0; font-size: 1.5rem;"></h3>
+                    <button id="nextMonth" class="btn btn-secondary" style="padding: 10px 20px;">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <!-- Day headers -->
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Sun</div>
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Mon</div>
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Tue</div>
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Wed</div>
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Thu</div>
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Fri</div>
+                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f8f9fa; border-radius: 8px;">Sat</div>
+                    <!-- Calendar days will be inserted here -->
+                </div>
+
+                <!-- Selected Day Details -->
+                <div id="dayDetails" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 12px; border-left: 4px solid var(--primary-color);">
+                    <h4 id="selectedDate" style="margin-top: 0; color: var(--primary-color);"></h4>
+                    <div id="scheduledPostsList"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2466,8 +2505,6 @@
                             video_cover_timestamp_ms: 1000
                         };
 
-                        // TODO: Add commercial content support to ScheduledPost model and API
-                        // Store commercial content info in description for now
                         if (formData.get('commercial_content')) {
                             const commercialInfo = {
                                 brand_organic: !!formData.get('your_brand'),
@@ -2851,6 +2888,228 @@
                 return (num / 1000).toFixed(1) + 'K';
             }
             return num.toString();
+        }
+
+        // ========== Calendar Functionality ==========
+        let currentCalendarDate = new Date();
+        let scheduledPostsData = [];
+
+        // Initialize calendar function (called from main DOMContentLoaded)
+        function setupCalendar() {
+            initializeCalendar();
+
+            // Listen for account changes to reload calendar
+            const accountPicker = document.getElementById('accountPicker');
+            if (accountPicker) {
+                // Use event delegation to avoid conflicts with existing listener
+                const existingListener = accountPicker.onchange;
+                accountPicker.addEventListener('change', () => {
+                    loadScheduledPostsForCalendar();
+                });
+            }
+        }
+
+        // Call setupCalendar after a short delay to ensure DOM is fully loaded
+        setTimeout(setupCalendar, 500);
+
+        function initializeCalendar() {
+            // Setup navigation buttons
+            document.getElementById('prevMonth').addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+                renderCalendar();
+            });
+
+            document.getElementById('nextMonth').addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+                renderCalendar();
+            });
+
+            renderCalendar();
+            loadScheduledPostsForCalendar();
+        }
+
+        async function loadScheduledPostsForCalendar() {
+            const accountPicker = document.getElementById('accountPicker');
+            const accountId = accountPicker?.value;
+
+            if (!accountId) {
+                scheduledPostsData = [];
+                renderCalendar();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/scheduled/list/${accountId}`);
+                const data = await response.json();
+
+                if (response.ok && data.scheduled_posts) {
+                    scheduledPostsData = data.scheduled_posts;
+                    renderCalendar();
+                } else {
+                    console.error('Failed to load scheduled posts:', data.error);
+                    scheduledPostsData = [];
+                    renderCalendar();
+                }
+            } catch (error) {
+                console.error('Error loading scheduled posts:', error);
+                scheduledPostsData = [];
+                renderCalendar();
+            }
+        }
+
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            // Update header
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+
+            // Get calendar grid (skip the first 7 header cells)
+            const calendarGrid = document.querySelector('.calendar-grid');
+            const existingDayCells = calendarGrid.querySelectorAll('.calendar-day');
+            existingDayCells.forEach(cell => cell.remove());
+
+            // Calculate first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Group posts by date
+            const postsByDate = {};
+            scheduledPostsData.forEach(post => {
+                if (post.scheduled_time) {
+                    const postDate = new Date(post.scheduled_time);
+                    const dateKey = `${postDate.getFullYear()}-${postDate.getMonth()}-${postDate.getDate()}`;
+                    if (!postsByDate[dateKey]) {
+                        postsByDate[dateKey] = [];
+                    }
+                    postsByDate[dateKey].push(post);
+                }
+            });
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day';
+                emptyCell.style.cssText = 'min-height: 80px; padding: 10px; border-radius: 8px; background: #f8f9fa; opacity: 0.3;';
+                calendarGrid.appendChild(emptyCell);
+            }
+
+            // Add day cells
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${month}-${day}`;
+                const postsOnDay = postsByDate[dateKey] || [];
+                const hasPost = postsOnDay.length > 0;
+
+                const dayCell = document.createElement('div');
+                dayCell.className = 'calendar-day';
+                dayCell.style.cssText = `
+                    min-height: 80px;
+                    padding: 10px;
+                    border-radius: 8px;
+                    background: ${hasPost ? 'linear-gradient(135deg, #ff0050 0%, #00f2ea 100%)' : 'white'};
+                    border: 2px solid ${hasPost ? '#ff0050' : '#e0e0e0'};
+                    cursor: ${hasPost ? 'pointer' : 'default'};
+                    transition: all 0.3s ease;
+                    position: relative;
+                    color: ${hasPost ? 'white' : '#333'};
+                `;
+
+                // Add day number
+                const dayNumber = document.createElement('div');
+                dayNumber.textContent = day;
+                dayNumber.style.cssText = `font-weight: bold; margin-bottom: 5px; font-size: 1.1rem;`;
+                dayCell.appendChild(dayNumber);
+
+                // Add post count if there are posts
+                if (hasPost) {
+                    const postCount = document.createElement('div');
+                    postCount.textContent = `${postsOnDay.length} post${postsOnDay.length > 1 ? 's' : ''}`;
+                    postCount.style.cssText = 'font-size: 0.85rem; opacity: 0.9;';
+                    dayCell.appendChild(postCount);
+
+                    // Add click handler
+                    dayCell.addEventListener('click', () => showDayDetails(year, month, day, postsOnDay));
+                    dayCell.addEventListener('mouseenter', () => {
+                        dayCell.style.transform = 'translateY(-2px)';
+                        dayCell.style.boxShadow = '0 5px 15px rgba(255, 0, 80, 0.3)';
+                    });
+                    dayCell.addEventListener('mouseleave', () => {
+                        dayCell.style.transform = 'translateY(0)';
+                        dayCell.style.boxShadow = 'none';
+                    });
+                }
+
+                // Highlight today
+                const today = new Date();
+                if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                    dayCell.style.border = '3px solid #ffc107';
+                }
+
+                calendarGrid.appendChild(dayCell);
+            }
+        }
+
+        function showDayDetails(year, month, day, posts) {
+            const dayDetails = document.getElementById('dayDetails');
+            const selectedDate = document.getElementById('selectedDate');
+            const scheduledPostsList = document.getElementById('scheduledPostsList');
+
+            // Format date
+            const date = new Date(year, month, day);
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            selectedDate.textContent = date.toLocaleDateString('en-US', options);
+
+            // Build posts list
+            let postsHTML = '';
+            posts.sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+
+            posts.forEach(post => {
+                const postTime = new Date(post.scheduled_time);
+                const timeString = postTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                let statusColor = '#28a745';
+                let statusText = 'Pending';
+                if (post.status === 'completed') {
+                    statusColor = '#17a2b8';
+                    statusText = 'Completed';
+                } else if (post.status === 'failed') {
+                    statusColor = '#dc3545';
+                    statusText = 'Failed';
+                } else if (post.status === 'processing') {
+                    statusColor = '#ffc107';
+                    statusText = 'Processing';
+                }
+
+                postsHTML += `
+                    <div style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <h5 style="margin: 0 0 5px 0; color: #333;">${post.title || 'Untitled Post'}</h5>
+                                <div style="color: #666; font-size: 0.9rem;">
+                                    <i class="fas fa-clock"></i> ${timeString}
+                                </div>
+                            </div>
+                            <span style="padding: 5px 10px; background: ${statusColor}; color: white; border-radius: 5px; font-size: 0.85rem;">
+                                ${statusText}
+                            </span>
+                        </div>
+                        ${post.description ? `<p style="margin: 10px 0; color: #555; font-size: 0.9rem;">${post.description}</p>` : ''}
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <span style="font-size: 0.85rem; color: #666;">
+                                <i class="fas fa-eye"></i> ${post.privacy_level.replace(/_/g, ' ').toLowerCase()}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            scheduledPostsList.innerHTML = postsHTML;
+            dayDetails.style.display = 'block';
+
+            // Scroll to details
+            dayDetails.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
 

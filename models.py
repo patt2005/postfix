@@ -98,7 +98,7 @@ class UserVideo(db.Model):
 
 class ScheduledPost(db.Model):
     __tablename__ = 'scheduled_posts'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     tiktok_account_id = db.Column(db.Integer, db.ForeignKey('tiktok_accounts.id'), nullable=False)
@@ -118,6 +118,32 @@ class ScheduledPost(db.Model):
     post_id = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<ScheduledPost {self.id} - {self.status}>'
+
+
+class PostedVideo(db.Model):
+    __tablename__ = 'posted_videos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    tiktok_account_id = db.Column(db.Integer, db.ForeignKey('tiktok_accounts.id'), nullable=False)
+    title = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    video_url = db.Column(db.String(500))
+    privacy_level = db.Column(db.String(50), default='PUBLIC_TO_EVERYONE')
+    disable_duet = db.Column(db.Boolean, default=False)
+    disable_comment = db.Column(db.Boolean, default=False)
+    disable_stitch = db.Column(db.Boolean, default=False)
+    video_cover_timestamp_ms = db.Column(db.Integer, default=1000)
+    post_id = db.Column(db.String(100))
+    publish_id = db.Column(db.String(100))
+    status = db.Column(db.String(50), default='completed')
+    error_message = db.Column(db.Text)
+    posted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<PostedVideo {self.id} - {self.title}>'

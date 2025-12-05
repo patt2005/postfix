@@ -11,7 +11,7 @@ import hashlib
 import base64
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
-from models import db, User, TikTokAccount, ScheduledPost, UserVideo
+from models import db, User, TikTokAccount, ScheduledPost, UserVideo, PostedVideo
 import json
 from config import TikTokConfig
 
@@ -1446,6 +1446,35 @@ def post_video():
                     'response': response_data
                 }), response.status_code
 
+        # Save posted video to database
+        try:
+            publish_id = response_data.get('data', {}).get('publish_id')
+
+            posted_video = PostedVideo(
+                user_id=current_user.id,
+                tiktok_account_id=tiktok_account_id,
+                title=data.get('title', ''),
+                description=data.get('description', ''),
+                video_url=final_video_url,
+                privacy_level=data.get('privacy_level', 'PUBLIC_TO_EVERYONE'),
+                disable_duet=data.get('disable_duet', False),
+                disable_comment=data.get('disable_comment', False),
+                disable_stitch=data.get('disable_stitch', False),
+                video_cover_timestamp_ms=data.get('video_cover_timestamp_ms', 1000),
+                publish_id=publish_id,
+                status='completed',
+                posted_at=datetime.utcnow()
+            )
+
+            db.session.add(posted_video)
+            db.session.commit()
+
+            logger.info(f"Posted video saved to database with ID: {posted_video.id}")
+        except Exception as db_error:
+            logger.error(f"Failed to save posted video to database: {str(db_error)}")
+            # Don't fail the request if database save fails
+            pass
+
         return jsonify(response_data)
     except Exception as e:
         logger.error(f"Error initiating video post: {str(e)}")
@@ -1687,10 +1716,10 @@ def create_scheduled_post():
 def list_scheduled_posts():
     """Get all scheduled posts for the current user"""
     user_id = current_user.id
-    
+
     try:
         scheduled_posts = ScheduledPost.query.filter_by(user_id=user_id).order_by(ScheduledPost.scheduled_time.desc()).all()
-        
+
         posts_data = []
         for post in scheduled_posts:
             posts_data.append({
@@ -1705,9 +1734,61 @@ def list_scheduled_posts():
                 'posted_at': post.posted_at.isoformat() if post.posted_at else None,
                 'created_at': post.created_at.isoformat() if post.created_at else None
             })
-        
+
         return jsonify({'scheduled_posts': posts_data})
-        
+
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch scheduled posts', 'message': str(e)}), 500
+
+
+@app.route('/api/scheduled/list/<int:account_id>', methods=['GET'])
+@login_required
+def list_scheduled_posts_by_account(account_id):
+    """Get all scheduled posts for a specific TikTok account"""
+    user_id = current_user.id
+
+    try:
+        # Verify the account belongs to the current user
+        account = TikTokAccount.query.filter_by(
+            id=account_id,
+            user_id=user_id,
+            is_active=True
+        ).first()
+
+        if not account:
+            return jsonify({'error': 'Account not found or unauthorized'}), 404
+
+        # Fetch scheduled posts for this account
+        scheduled_posts = ScheduledPost.query.filter_by(
+            user_id=user_id,
+            tiktok_account_id=account_id
+        ).order_by(ScheduledPost.scheduled_time.asc()).all()
+
+        posts_data = []
+        for post in scheduled_posts:
+            posts_data.append({
+                'id': post.id,
+                'title': post.title,
+                'description': post.description,
+                'video_url': post.video_url,
+                'privacy_level': post.privacy_level,
+                'scheduled_time': post.scheduled_time.isoformat() if post.scheduled_time else None,
+                'status': post.status,
+                'error_message': post.error_message,
+                'posted_at': post.posted_at.isoformat() if post.posted_at else None,
+                'created_at': post.created_at.isoformat() if post.created_at else None,
+                'tiktok_account_id': post.tiktok_account_id
+            })
+
+        return jsonify({
+            'scheduled_posts': posts_data,
+            'account': {
+                'id': account.id,
+                'username': account.username,
+                'display_name': account.display_name
+            }
+        })
+
     except Exception as e:
         return jsonify({'error': 'Failed to fetch scheduled posts', 'message': str(e)}), 500
 
