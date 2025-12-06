@@ -11,7 +11,7 @@ import hashlib
 import base64
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
-from models import db, User, TikTokAccount, ScheduledPost, UserVideo, PostedVideo
+from models import db, User, TikTokAccount, ScheduledPost, PostedVideo
 import json
 from config import TikTokConfig
 
@@ -1816,6 +1816,59 @@ def delete_scheduled_post(post_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to delete scheduled post', 'message': str(e)}), 500
+
+
+@app.route('/api/posted/list/<int:account_id>', methods=['GET'])
+@login_required
+def list_posted_videos_by_account(account_id):
+    """Get all posted videos for a specific TikTok account"""
+    user_id = current_user.id
+
+    try:
+        # Verify the account belongs to the current user
+        account = TikTokAccount.query.filter_by(
+            id=account_id,
+            user_id=user_id,
+            is_active=True
+        ).first()
+
+        if not account:
+            return jsonify({'error': 'Account not found or unauthorized'}), 404
+
+        # Fetch posted videos for this account
+        posted_videos = PostedVideo.query.filter_by(
+            user_id=user_id,
+            tiktok_account_id=account_id
+        ).order_by(PostedVideo.posted_at.desc()).all()
+
+        videos_data = []
+        for video in posted_videos:
+            videos_data.append({
+                'id': video.id,
+                'title': video.title,
+                'description': video.description,
+                'video_url': video.video_url,
+                'privacy_level': video.privacy_level,
+                'post_id': video.post_id,
+                'publish_id': video.publish_id,
+                'status': video.status,
+                'error_message': video.error_message,
+                'posted_at': video.posted_at.isoformat() if video.posted_at else None,
+                'created_at': video.created_at.isoformat() if video.created_at else None,
+                'tiktok_account_id': video.tiktok_account_id
+            })
+
+        return jsonify({
+            'posted_videos': videos_data,
+            'account': {
+                'id': account.id,
+                'username': account.username,
+                'display_name': account.display_name
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch posted videos', 'message': str(e)}), 500
 
 
 @app.route('/api/scheduled/execute', methods=['POST'])

@@ -8,7 +8,7 @@ import logging
 import requests
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-from models import db, TikTokAccount, UserVideo
+from models import db, TikTokAccount
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -145,82 +145,7 @@ def update_user_profiles():
     finally:
         session.close()
 
-def refresh_video_metadata():
-    """
-    Refresh metadata for selected videos (cover images expire)
-    Runs every 24 hours
-    """
-    session = Session()
-    try:
-        # Get selected videos older than 24 hours
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
-        
-        videos = session.query(UserVideo).filter(
-            UserVideo.is_selected == True,
-            UserVideo.last_updated < cutoff_time
-        ).all()
-        
-        logger.info(f"Refreshing metadata for {len(videos)} selected videos")
-        
-        # Group videos by account
-        videos_by_account = {}
-        for video in videos:
-            if video.tiktok_account_id not in videos_by_account:
-                videos_by_account[video.tiktok_account_id] = []
-            videos_by_account[video.tiktok_account_id].append(video.video_id)
-        
-        for account_id, video_ids in videos_by_account.items():
-            try:
-                account = session.query(TikTokAccount).get(account_id)
-                if not account:
-                    continue
-                
-                # Query videos in batches of 20
-                for i in range(0, len(video_ids), 20):
-                    batch = video_ids[i:i+20]
-                    
-                    headers = {
-                        'Authorization': f'Bearer {account.access_token}',
-                        'Content-Type': 'application/json'
-                    }
-                    
-                    fields = 'id,cover_image_url,embed_link,view_count,like_count,comment_count,share_count'
-                    
-                    response = requests.post(
-                        f'{TIKTOK_BASE_URL}/video/query/',
-                        headers=headers,
-                        params={'fields': fields},
-                        json={'filters': {'video_ids': batch}}
-                    )
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        if 'data' in data:
-                            for video_data in data['data'].get('videos', []):
-                                # Update video in database
-                                video = session.query(UserVideo).filter_by(
-                                    video_id=video_data['id']
-                                ).first()
-                                
-                                if video:
-                                    video.cover_image_url = video_data.get('cover_image_url')
-                                    video.embed_link = video_data.get('embed_link')
-                                    video.view_count = video_data.get('view_count', 0)
-                                    video.like_count = video_data.get('like_count', 0)
-                                    video.comment_count = video_data.get('comment_count', 0)
-                                    video.share_count = video_data.get('share_count', 0)
-                                    video.last_updated = datetime.utcnow()
-                        
-                        session.commit()
-                        logger.info(f"Updated {len(batch)} videos for account {account_id}")
-                        
-            except Exception as e:
-                logger.error(f"Error refreshing videos for account {account_id}: {str(e)}")
-                
-    except Exception as e:
-        logger.error(f"Error in refresh_video_metadata: {str(e)}")
-    finally:
-        session.close()
+# Removed refresh_video_metadata function as we now use PostedVideo model
 
 def start_scheduler():
     """
@@ -245,16 +170,7 @@ def start_scheduler():
         id='update_profiles',
         replace_existing=True
     )
-    
-    # Schedule video metadata refresh every 24 hours
-    scheduler.add_job(
-        refresh_video_metadata,
-        'interval',
-        hours=24,
-        id='refresh_videos',
-        replace_existing=True
-    )
-    
+
     # Run jobs immediately on startup
     scheduler.add_job(refresh_access_tokens, 'date', run_date=datetime.now())
     scheduler.add_job(update_user_profiles, 'date', run_date=datetime.now())

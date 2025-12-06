@@ -2893,6 +2893,7 @@
         // ========== Calendar Functionality ==========
         let currentCalendarDate = new Date();
         let scheduledPostsData = [];
+        let postedVideosData = [];
 
         // Initialize calendar function (called from main DOMContentLoaded)
         function setupCalendar() {
@@ -2934,25 +2935,40 @@
 
             if (!accountId) {
                 scheduledPostsData = [];
+                postedVideosData = [];
                 renderCalendar();
                 return;
             }
 
             try {
-                const response = await fetch(`/api/scheduled/list/${accountId}`);
-                const data = await response.json();
+                // Fetch both scheduled posts and posted videos in parallel
+                const [scheduledResponse, postedResponse] = await Promise.all([
+                    fetch(`/api/scheduled/list/${accountId}`),
+                    fetch(`/api/posted/list/${accountId}`)
+                ]);
 
-                if (response.ok && data.scheduled_posts) {
-                    scheduledPostsData = data.scheduled_posts;
-                    renderCalendar();
+                const scheduledData = await scheduledResponse.json();
+                const postedData = await postedResponse.json();
+
+                if (scheduledResponse.ok && scheduledData.scheduled_posts) {
+                    scheduledPostsData = scheduledData.scheduled_posts;
                 } else {
-                    console.error('Failed to load scheduled posts:', data.error);
+                    console.error('Failed to load scheduled posts:', scheduledData.error);
                     scheduledPostsData = [];
-                    renderCalendar();
                 }
+
+                if (postedResponse.ok && postedData.posted_videos) {
+                    postedVideosData = postedData.posted_videos;
+                } else {
+                    console.error('Failed to load posted videos:', postedData.error);
+                    postedVideosData = [];
+                }
+
+                renderCalendar();
             } catch (error) {
-                console.error('Error loading scheduled posts:', error);
+                console.error('Error loading calendar data:', error);
                 scheduledPostsData = [];
+                postedVideosData = [];
                 renderCalendar();
             }
         }
@@ -2975,16 +2991,30 @@
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            // Group posts by date
+            // Group posts by date (both scheduled and posted)
             const postsByDate = {};
+
+            // Add scheduled posts
             scheduledPostsData.forEach(post => {
                 if (post.scheduled_time) {
                     const postDate = new Date(post.scheduled_time);
                     const dateKey = `${postDate.getFullYear()}-${postDate.getMonth()}-${postDate.getDate()}`;
                     if (!postsByDate[dateKey]) {
-                        postsByDate[dateKey] = [];
+                        postsByDate[dateKey] = { scheduled: [], posted: [] };
                     }
-                    postsByDate[dateKey].push(post);
+                    postsByDate[dateKey].scheduled.push(post);
+                }
+            });
+
+            // Add posted videos
+            postedVideosData.forEach(video => {
+                if (video.posted_at) {
+                    const postDate = new Date(video.posted_at);
+                    const dateKey = `${postDate.getFullYear()}-${postDate.getMonth()}-${postDate.getDate()}`;
+                    if (!postsByDate[dateKey]) {
+                        postsByDate[dateKey] = { scheduled: [], posted: [] };
+                    }
+                    postsByDate[dateKey].posted.push(video);
                 }
             });
 
@@ -2999,8 +3029,11 @@
             // Add day cells
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateKey = `${year}-${month}-${day}`;
-                const postsOnDay = postsByDate[dateKey] || [];
-                const hasPost = postsOnDay.length > 0;
+                const dayData = postsByDate[dateKey] || { scheduled: [], posted: [] };
+                const scheduledCount = dayData.scheduled.length;
+                const postedCount = dayData.posted.length;
+                const totalCount = scheduledCount + postedCount;
+                const hasContent = totalCount > 0;
 
                 const dayCell = document.createElement('div');
                 dayCell.className = 'calendar-day';
@@ -3008,12 +3041,12 @@
                     min-height: 80px;
                     padding: 10px;
                     border-radius: 8px;
-                    background: ${hasPost ? 'linear-gradient(135deg, #ff0050 0%, #00f2ea 100%)' : 'white'};
-                    border: 2px solid ${hasPost ? '#ff0050' : '#e0e0e0'};
-                    cursor: ${hasPost ? 'pointer' : 'default'};
+                    background: ${hasContent ? 'linear-gradient(135deg, #ff0050 0%, #00f2ea 100%)' : 'white'};
+                    border: 2px solid ${hasContent ? '#ff0050' : '#e0e0e0'};
+                    cursor: ${hasContent ? 'pointer' : 'default'};
                     transition: all 0.3s ease;
                     position: relative;
-                    color: ${hasPost ? 'white' : '#333'};
+                    color: ${hasContent ? 'white' : '#333'};
                 `;
 
                 // Add day number
@@ -3022,15 +3055,28 @@
                 dayNumber.style.cssText = `font-weight: bold; margin-bottom: 5px; font-size: 1.1rem;`;
                 dayCell.appendChild(dayNumber);
 
-                // Add post count if there are posts
-                if (hasPost) {
-                    const postCount = document.createElement('div');
-                    postCount.textContent = `${postsOnDay.length} post${postsOnDay.length > 1 ? 's' : ''}`;
-                    postCount.style.cssText = 'font-size: 0.85rem; opacity: 0.9;';
-                    dayCell.appendChild(postCount);
+                // Add counts if there are posts/videos
+                if (hasContent) {
+                    const countsContainer = document.createElement('div');
+                    countsContainer.style.cssText = 'font-size: 0.8rem; opacity: 0.95;';
+
+                    if (scheduledCount > 0) {
+                        const scheduledLabel = document.createElement('div');
+                        scheduledLabel.textContent = `📅 ${scheduledCount} scheduled`;
+                        scheduledLabel.style.cssText = 'margin-bottom: 2px;';
+                        countsContainer.appendChild(scheduledLabel);
+                    }
+
+                    if (postedCount > 0) {
+                        const postedLabel = document.createElement('div');
+                        postedLabel.textContent = `✓ ${postedCount} posted`;
+                        countsContainer.appendChild(postedLabel);
+                    }
+
+                    dayCell.appendChild(countsContainer);
 
                     // Add click handler
-                    dayCell.addEventListener('click', () => showDayDetails(year, month, day, postsOnDay));
+                    dayCell.addEventListener('click', () => showDayDetails(year, month, day, dayData));
                     dayCell.addEventListener('mouseenter', () => {
                         dayCell.style.transform = 'translateY(-2px)';
                         dayCell.style.boxShadow = '0 5px 15px rgba(255, 0, 80, 0.3)';
@@ -3051,7 +3097,7 @@
             }
         }
 
-        function showDayDetails(year, month, day, posts) {
+        function showDayDetails(year, month, day, dayData) {
             const dayDetails = document.getElementById('dayDetails');
             const selectedDate = document.getElementById('selectedDate');
             const scheduledPostsList = document.getElementById('scheduledPostsList');
@@ -3061,51 +3107,104 @@
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             selectedDate.textContent = date.toLocaleDateString('en-US', options);
 
-            // Build posts list
-            let postsHTML = '';
-            posts.sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+            let contentHTML = '';
 
-            posts.forEach(post => {
-                const postTime = new Date(post.scheduled_time);
-                const timeString = postTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            // Add scheduled posts section
+            if (dayData.scheduled && dayData.scheduled.length > 0) {
+                contentHTML += '<h6 style="color: #333; margin: 20px 0 10px 0; font-size: 1rem;">📅 Scheduled Posts</h6>';
 
-                let statusColor = '#28a745';
-                let statusText = 'Pending';
-                if (post.status === 'completed') {
-                    statusColor = '#17a2b8';
-                    statusText = 'Completed';
-                } else if (post.status === 'failed') {
-                    statusColor = '#dc3545';
-                    statusText = 'Failed';
-                } else if (post.status === 'processing') {
-                    statusColor = '#ffc107';
-                    statusText = 'Processing';
-                }
+                const scheduledPosts = [...dayData.scheduled].sort((a, b) =>
+                    new Date(a.scheduled_time) - new Date(b.scheduled_time)
+                );
 
-                postsHTML += `
-                    <div style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid ${statusColor};">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                            <div style="flex: 1;">
-                                <h5 style="margin: 0 0 5px 0; color: #333;">${post.title || 'Untitled Post'}</h5>
-                                <div style="color: #666; font-size: 0.9rem;">
-                                    <i class="fas fa-clock"></i> ${timeString}
+                scheduledPosts.forEach(post => {
+                    const postTime = new Date(post.scheduled_time);
+                    const timeString = postTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                    let statusColor = '#28a745';
+                    let statusText = 'Pending';
+                    if (post.status === 'completed') {
+                        statusColor = '#17a2b8';
+                        statusText = 'Completed';
+                    } else if (post.status === 'failed') {
+                        statusColor = '#dc3545';
+                        statusText = 'Failed';
+                    } else if (post.status === 'processing') {
+                        statusColor = '#ffc107';
+                        statusText = 'Processing';
+                    }
+
+                    contentHTML += `
+                        <div style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                <div style="flex: 1;">
+                                    <h5 style="margin: 0 0 5px 0; color: #333;">${post.title || 'Untitled Post'}</h5>
+                                    <div style="color: #666; font-size: 0.9rem;">
+                                        <i class="fas fa-clock"></i> ${timeString}
+                                    </div>
                                 </div>
+                                <span style="padding: 5px 10px; background: ${statusColor}; color: white; border-radius: 5px; font-size: 0.85rem;">
+                                    ${statusText}
+                                </span>
                             </div>
-                            <span style="padding: 5px 10px; background: ${statusColor}; color: white; border-radius: 5px; font-size: 0.85rem;">
-                                ${statusText}
-                            </span>
+                            ${post.description ? `<p style="margin: 10px 0; color: #555; font-size: 0.9rem;">${post.description}</p>` : ''}
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <span style="font-size: 0.85rem; color: #666;">
+                                    <i class="fas fa-eye"></i> ${post.privacy_level.replace(/_/g, ' ').toLowerCase()}
+                                </span>
+                            </div>
                         </div>
-                        ${post.description ? `<p style="margin: 10px 0; color: #555; font-size: 0.9rem;">${post.description}</p>` : ''}
-                        <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <span style="font-size: 0.85rem; color: #666;">
-                                <i class="fas fa-eye"></i> ${post.privacy_level.replace(/_/g, ' ').toLowerCase()}
-                            </span>
-                        </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
 
-            scheduledPostsList.innerHTML = postsHTML;
+            // Add posted videos section
+            if (dayData.posted && dayData.posted.length > 0) {
+                contentHTML += '<h6 style="color: #333; margin: 20px 0 10px 0; font-size: 1rem;">✓ Posted Videos</h6>';
+
+                const postedVideos = [...dayData.posted].sort((a, b) =>
+                    new Date(b.posted_at) - new Date(a.posted_at)
+                );
+
+                postedVideos.forEach(video => {
+                    const postTime = new Date(video.posted_at);
+                    const timeString = postTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                    let statusColor = '#28a745';
+                    let statusText = 'Completed';
+                    if (video.status === 'failed') {
+                        statusColor = '#dc3545';
+                        statusText = 'Failed';
+                    }
+
+                    contentHTML += `
+                        <div style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                <div style="flex: 1;">
+                                    <h5 style="margin: 0 0 5px 0; color: #333;">${video.title || 'Untitled Video'}</h5>
+                                    <div style="color: #666; font-size: 0.9rem;">
+                                        <i class="fas fa-check-circle"></i> Posted at ${timeString}
+                                    </div>
+                                </div>
+                                <span style="padding: 5px 10px; background: ${statusColor}; color: white; border-radius: 5px; font-size: 0.85rem;">
+                                    ${statusText}
+                                </span>
+                            </div>
+                            ${video.description ? `<p style="margin: 10px 0; color: #555; font-size: 0.9rem;">${video.description}</p>` : ''}
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <span style="font-size: 0.85rem; color: #666;">
+                                    <i class="fas fa-eye"></i> ${video.privacy_level.replace(/_/g, ' ').toLowerCase()}
+                                </span>
+                                ${video.post_id ? `<span style="font-size: 0.85rem; color: #666;">
+                                    <i class="fas fa-link"></i> ID: ${video.post_id}
+                                </span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            scheduledPostsList.innerHTML = contentHTML;
             dayDetails.style.display = 'block';
 
             // Scroll to details
