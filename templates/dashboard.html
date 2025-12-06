@@ -2895,6 +2895,20 @@
         let scheduledPostsData = [];
         let postedVideosData = [];
 
+        // Helper function to format time in user's local timezone
+        function formatLocalTime(dateString) {
+            const date = new Date(dateString);
+            const timeString = date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            const timezone = date.toLocaleTimeString('en-US', {
+                timeZoneName: 'short'
+            }).split(' ').slice(-1)[0];
+            return `${timeString} ${timezone}`;
+        }
+
         // Initialize calendar function (called from main DOMContentLoaded)
         function setupCalendar() {
             initializeCalendar();
@@ -3118,8 +3132,7 @@
                 );
 
                 scheduledPosts.forEach(post => {
-                    const postTime = new Date(post.scheduled_time);
-                    const timeString = postTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    const timeString = formatLocalTime(post.scheduled_time);
 
                     let statusColor = '#28a745';
                     let statusText = 'Pending';
@@ -3167,8 +3180,7 @@
                 );
 
                 postedVideos.forEach(video => {
-                    const postTime = new Date(video.posted_at);
-                    const timeString = postTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    const timeString = formatLocalTime(video.posted_at);
 
                     let statusColor = '#28a745';
                     let statusText = 'Completed';
