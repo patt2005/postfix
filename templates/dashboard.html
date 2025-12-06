@@ -2919,6 +2919,11 @@
                 // Use event delegation to avoid conflicts with existing listener
                 const existingListener = accountPicker.onchange;
                 accountPicker.addEventListener('change', () => {
+                    // Hide day details panel when switching accounts
+                    const dayDetails = document.getElementById('dayDetails');
+                    if (dayDetails) {
+                        dayDetails.style.display = 'none';
+                    }
                     loadScheduledPostsForCalendar();
                 });
             }
@@ -2931,11 +2936,21 @@
             // Setup navigation buttons
             document.getElementById('prevMonth').addEventListener('click', () => {
                 currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+                // Hide day details when changing months
+                const dayDetails = document.getElementById('dayDetails');
+                if (dayDetails) {
+                    dayDetails.style.display = 'none';
+                }
                 renderCalendar();
             });
 
             document.getElementById('nextMonth').addEventListener('click', () => {
                 currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+                // Hide day details when changing months
+                const dayDetails = document.getElementById('dayDetails');
+                if (dayDetails) {
+                    dayDetails.style.display = 'none';
+                }
                 renderCalendar();
             });
 
