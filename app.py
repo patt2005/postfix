@@ -1276,10 +1276,11 @@ def remove_sora_watermark():
     """
     try:
         # Import SoraWatermarkCleaner
+        # Add project root to Python path so SoraWatermarkCleaner can be imported
         import sys
-        sorawm_path = os.path.join(os.getcwd(), 'SoraWatermarkCleaner')
-        if sorawm_path not in sys.path:
-            sys.path.insert(0, sorawm_path)
+        project_root = os.getcwd()
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
         
         from pathlib import Path
         from SoraWatermarkCleaner.sorawm.core import SoraWM

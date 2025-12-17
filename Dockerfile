@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies (including SoraWatermarkCleaner dependencies)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
+# Copy the application code (including SoraWatermarkCleaner directory)
 COPY . .
 
 # Expose the port the app runs on
