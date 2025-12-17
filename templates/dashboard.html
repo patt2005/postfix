@@ -398,10 +398,12 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: nowrap;
             margin-bottom: 15px;
             padding: 10px;
             background: white;
             border-radius: 6px;
+            min-width: 0;
         }
 
         .interaction-item:last-child {
@@ -413,6 +415,12 @@
             align-items: center;
             gap: 10px;
             flex: 1;
+            min-width: 0;
+        }
+
+        .interaction-label > div {
+            min-width: 0;
+            flex: 1;
         }
 
         .interaction-toggle {
@@ -420,7 +428,7 @@
             width: 50px;
             height: 26px;
             flex-shrink: 0;
-            margin-left: auto;
+            margin-left: 15px;
         }
 
         .interaction-toggle input {
@@ -489,11 +497,13 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: nowrap;
             gap: 15px;
             margin-bottom: 20px;
             padding: 15px;
             background: white;
             border-radius: 8px;
+            min-width: 0;
         }
 
         .commercial-options {
@@ -1008,7 +1018,7 @@
                                 </div>
                             </div>
                             <div class="interaction-toggle">
-                                <input type="checkbox" id="allowComments" name="allow_comments">
+                                <input type="checkbox" id="allowComments" name="allow_comments" checked>
                                 <span class="interaction-toggle-slider"></span>
                             </div>
                         </div>
@@ -1024,7 +1034,7 @@
                                 </div>
                             </div>
                             <div class="interaction-toggle">
-                                <input type="checkbox" id="allowDuet" name="allow_duet">
+                                <input type="checkbox" id="allowDuet" name="allow_duet" checked>
                                 <span class="interaction-toggle-slider"></span>
                             </div>
                         </div>
@@ -1040,7 +1050,7 @@
                                 </div>
                             </div>
                             <div class="interaction-toggle">
-                                <input type="checkbox" id="allowStitch" name="allow_stitch">
+                                <input type="checkbox" id="allowStitch" name="allow_stitch" checked>
                                 <span class="interaction-toggle-slider"></span>
                             </div>
                         </div>
@@ -1323,17 +1333,15 @@
             const duetControl = document.getElementById('duetControl');
             const stitchControl = document.getElementById('stitchControl');
 
-            // Reset all toggles to unchecked (no default checked state)
-            commentToggle.checked = false;
-            duetToggle.checked = false;
-            stitchToggle.checked = false;
-
+            // Set all toggles to checked by default (unless disabled by account settings)
             // Handle comment toggle based on creator settings
             if (creatorSettings.comment_disabled) {
+                commentToggle.checked = false;
                 commentToggle.disabled = true;
                 commentControl.style.opacity = '0.5';
                 document.getElementById('commentDisabledReason').style.display = 'block';
             } else {
+                commentToggle.checked = true;
                 commentToggle.disabled = false;
                 commentControl.style.opacity = '1';
                 document.getElementById('commentDisabledReason').style.display = 'none';
@@ -1341,10 +1349,12 @@
 
             // Handle duet toggle based on creator settings
             if (creatorSettings.duet_disabled) {
+                duetToggle.checked = false;
                 duetToggle.disabled = true;
                 duetControl.style.opacity = '0.5';
                 document.getElementById('duetDisabledReason').style.display = 'block';
             } else {
+                duetToggle.checked = true;
                 duetToggle.disabled = false;
                 duetControl.style.opacity = '1';
                 document.getElementById('duetDisabledReason').style.display = 'none';
@@ -1352,10 +1362,12 @@
 
             // Handle stitch toggle based on creator settings
             if (creatorSettings.stitch_disabled) {
+                stitchToggle.checked = false;
                 stitchToggle.disabled = true;
                 stitchControl.style.opacity = '0.5';
                 document.getElementById('stitchDisabledReason').style.display = 'block';
             } else {
+                stitchToggle.checked = true;
                 stitchToggle.disabled = false;
                 stitchControl.style.opacity = '1';
                 document.getElementById('stitchDisabledReason').style.display = 'none';
@@ -1860,6 +1872,15 @@
                 document.getElementById('duetControl').style.display = 'block';
                 document.getElementById('stitchControl').style.display = 'block';
                 document.getElementById('photoInteractionNote').style.display = 'none';
+                // Set duet and stitch back to checked if they're not disabled
+                const duetToggle = document.getElementById('allowDuet');
+                const stitchToggle = document.getElementById('allowStitch');
+                if (!duetToggle.disabled) {
+                    duetToggle.checked = true;
+                }
+                if (!stitchToggle.disabled) {
+                    stitchToggle.checked = true;
+                }
             }
 
             // Create video preview
