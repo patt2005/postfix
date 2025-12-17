@@ -1229,9 +1229,9 @@ def apply_watermark():
             logo_path="images/logo.png",
             end_time=4,
             fade_duration=1.0,
-            logo_scale=0.3,
+            logo_scale=0.4,
             position="bottom_center",
-            margin=250
+            margin=280
         )
 
         if not output_path or not os.path.exists(output_path):
@@ -1265,6 +1265,91 @@ def apply_watermark():
     except Exception as e:
         logger.error(f"Error applying watermark: {str(e)}")
         return jsonify({'error': 'Failed to apply watermark', 'message': str(e)}), 500
+
+
+@app.route('/api/watermark/remove-sora', methods=['POST'])
+@login_required
+def remove_sora_watermark():
+    """
+    Remove Sora 2 watermark from a video file using SoraWatermarkCleaner.
+    Uses LAMA cleaner type for fast and good quality processing.
+    """
+    try:
+        # Import SoraWatermarkCleaner
+        import sys
+        sorawm_path = os.path.join(os.getcwd(), 'SoraWatermarkCleaner')
+        if sorawm_path not in sys.path:
+            sys.path.insert(0, sorawm_path)
+        
+        from pathlib import Path
+        from SoraWatermarkCleaner.sorawm.core import SoraWM
+        from SoraWatermarkCleaner.sorawm.schemas import CleanerType
+
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file provided'}), 400
+
+        video_file = request.files['video']
+
+        if video_file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        # Save the uploaded video to a temporary location
+        temp_dir = os.path.join(os.getcwd(), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Generate unique filename
+        timestamp = str(int(time.time()))
+        input_filename = secure_filename(video_file.filename)
+        input_path = os.path.join(temp_dir, f"{timestamp}_{input_filename}")
+        
+        # Save the uploaded file
+        video_file.save(input_path)
+
+        logger.info(f"Removing Sora watermark from video: {input_path}")
+
+        # Prepare output path
+        output_filename = input_filename.rsplit('.', 1)[0] + '_sora_removed.' + input_filename.rsplit('.', 1)[1]
+        output_path = os.path.join(temp_dir, f"{timestamp}_{output_filename}")
+
+        # Initialize SoraWM with LAMA cleaner type
+        sora_wm = SoraWM(cleaner_type=CleanerType.LAMA)
+        
+        # Process the video
+        sora_wm.run(Path(input_path), Path(output_path), quiet=True)
+
+        if not os.path.exists(output_path):
+            # Clean up temp file
+            if os.path.exists(input_path):
+                os.remove(input_path)
+            return jsonify({'error': 'Failed to remove Sora watermark'}), 500
+
+        logger.info(f"Sora watermark removed successfully: {output_path}")
+
+        # Read the processed video file
+        with open(output_path, 'rb') as f:
+            processed_video = f.read()
+
+        # Clean up temporary files
+        if os.path.exists(input_path):
+            os.remove(input_path)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+
+        # Return the processed video as a binary response
+        from flask import Response
+        return Response(
+            processed_video,
+            mimetype='video/mp4',
+            headers={
+                'Content-Disposition': f'attachment; filename=sora_removed_{input_filename}'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error removing Sora watermark: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to remove Sora watermark', 'message': str(e)}), 500
 
 
 @app.route('/api/post/video', methods=['POST'])
