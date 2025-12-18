@@ -12,7 +12,7 @@ def add_watermark(
     output_path: str = None,
     logo_path: str = "images/logo.png",
     start_time: float = 0,
-    end_time: float = 3,
+    end_time: float = None,
     fade_duration: float = 1.0,
     logo_scale: float = 0.15,
     position: str = "bottom_center",
@@ -26,7 +26,7 @@ def add_watermark(
         output_path (str): Path for the output video (optional, will auto-generate if None)
         logo_path (str): Path to the logo image (default: images/logo.png)
         start_time (float): Time in seconds when logo should appear (default: 0)
-        end_time (float): Time in seconds when logo should disappear (default: 3)
+        end_time (float): Time in seconds when logo should disappear (default: None = end of video)
         fade_duration (float): Duration of fade-in animation in seconds (default: 1.0)
         logo_scale (float): Scale of logo relative to video width (default: 0.15 = 15% of video width)
         position (str): Position of logo - "bottom_center", "bottom_left", "bottom_right", etc.
@@ -39,6 +39,11 @@ def add_watermark(
     # Load the video
     print(f"Loading video: {video_path}")
     video = VideoFileClip(video_path)
+
+    # Set end_time to video duration if not specified
+    if end_time is None:
+        end_time = video.duration
+        print(f"Watermark will be visible for full video length: {end_time:.2f} seconds")
 
     # Load the logo
     print(f"Loading logo: {logo_path}")
@@ -157,9 +162,8 @@ if __name__ == "__main__":
         video_path=video_path,
         output_path=None,
         logo_path="images/logo.png",
-        end_time=3,
         fade_duration=1.0,
-        logo_scale=0.3,
+        logo_scale=0.4,
         position="bottom_center",
         margin=250
     )

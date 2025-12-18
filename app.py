@@ -1227,7 +1227,6 @@ def apply_watermark():
             video_path=input_path,
             output_path=None,
             logo_path="images/logo.png",
-            end_time=4,
             fade_duration=1.0,
             logo_scale=0.4,
             position="bottom_center",
