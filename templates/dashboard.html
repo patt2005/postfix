@@ -944,19 +944,6 @@
                     </div>
                 </div>
 
-                <!-- Remove Sora Watermark Toggle -->
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="removeSoraWatermarkToggle" name="remove_sora_watermark">
-                        <span>Remove Sora 2 Watermark</span>
-                    </label>
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        <i class="fas fa-info-circle"></i> Automatically detect and remove Sora watermark from your video using AI
-                    </small>
-                    <div id="soraWatermarkProgress" style="display: none; margin-top: 10px; padding: 10px; background: #fff3e0; border-radius: 6px; font-size: 14px;">
-                        <i class="fas fa-spinner fa-spin"></i> Removing Sora watermark... This may take a few moments.
-                    </div>
-                </div>
 
                 <!-- Title/Caption -->
                 <div class="form-group">
@@ -1706,17 +1693,6 @@
                 }
             });
 
-            // Remove Sora watermark toggle
-            const removeSoraWatermarkToggle = document.getElementById('removeSoraWatermarkToggle');
-            removeSoraWatermarkToggle.addEventListener('change', async () => {
-                if (removeSoraWatermarkToggle.checked && selectedFile) {
-                    // Remove Sora watermark when toggle is turned on
-                    await removeSoraWatermark();
-                } else if (!removeSoraWatermarkToggle.checked && selectedFile) {
-                    showNotification('Sora watermark removal cancelled. Please re-upload video to process again.', 'info', 3000);
-                }
-            });
-
             // User consent
             document.getElementById('userConsent').addEventListener('change', updateSubmitButton);
 
@@ -1863,8 +1839,6 @@
             const watermarkIndicator = document.getElementById('watermarkIndicator');
             const watermarkStatus = document.getElementById('watermarkStatus');
             const videoPreview = document.getElementById('videoPreview');
-            const soraWatermarkProgress = document.getElementById('soraWatermarkProgress');
-            const removeSoraWatermarkToggle = document.getElementById('removeSoraWatermarkToggle');
 
             if (watermarkIndicator) {
                 watermarkIndicator.classList.remove('show');
@@ -1877,15 +1851,6 @@
             if (videoPreview) {
                 videoPreview.style.border = '';
                 videoPreview.style.boxShadow = '';
-            }
-
-            // Reset Sora watermark removal toggle and progress
-            if (removeSoraWatermarkToggle) {
-                removeSoraWatermarkToggle.checked = false;
-            }
-
-            if (soraWatermarkProgress) {
-                soraWatermarkProgress.style.display = 'none';
             }
 
             // Display file info
@@ -1953,9 +1918,6 @@
 
             // Check if watermark toggle is enabled and apply watermark
             await checkAndApplyWatermark();
-            
-            // Check if Sora watermark removal toggle is enabled and remove watermark
-            await checkAndRemoveSoraWatermark();
         }
 
         // Check if watermark should be applied and apply it
@@ -1966,79 +1928,6 @@
             }
 
             await applyWatermark();
-        }
-
-        // Check if Sora watermark should be removed and remove it
-        async function checkAndRemoveSoraWatermark() {
-            const removeSoraWatermarkToggle = document.getElementById('removeSoraWatermarkToggle');
-            if (!removeSoraWatermarkToggle.checked || !selectedFile) {
-                return;
-            }
-
-            await removeSoraWatermark();
-        }
-
-        // Remove Sora watermark from the selected video
-        async function removeSoraWatermark() {
-            if (!selectedFile) {
-                showNotification('Please select a video first', 'warning');
-                return;
-            }
-
-            const progressDiv = document.getElementById('soraWatermarkProgress');
-            const videoPreview = document.getElementById('videoPreview');
-
-            try {
-                // Show progress
-                progressDiv.style.display = 'block';
-
-                // Prepare form data
-                const formData = new FormData();
-                formData.append('video', selectedFile);
-
-                // Call backend to remove Sora watermark
-                const response = await fetch('/api/watermark/remove-sora', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to remove Sora watermark');
-                }
-
-                // Get the processed video as a blob
-                const blob = await response.blob();
-
-                // Create a new File object from the blob
-                const processedFile = new File([blob], selectedFile.name.replace(/(\.\w+)$/, '_sora_removed$1'), {
-                    type: selectedFile.type
-                });
-
-                // Update selectedFile to the processed version
-                selectedFile = processedFile;
-
-                // Update the video preview with the processed version
-                const url = URL.createObjectURL(blob);
-                videoPreview.src = url;
-
-                // Update file size display
-                document.getElementById('fileSize').textContent = formatFileSize(processedFile.size);
-
-                // Hide progress and show success
-                progressDiv.style.display = 'none';
-                showNotification('Sora watermark removed successfully! Check the preview above', 'success', 4000);
-
-                // Reload the video to ensure it displays from the beginning
-                if (videoPreview) {
-                    videoPreview.load();
-                }
-
-            } catch (error) {
-                progressDiv.style.display = 'none';
-                showNotification(`Failed to remove Sora watermark: ${error.message}`, 'error');
-                console.error('Sora watermark removal error:', error);
-            }
         }
 
         // Apply watermark to the selected video

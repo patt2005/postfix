@@ -24,10 +24,10 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies (including SoraWatermarkCleaner dependencies)
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code (including SoraWatermarkCleaner directory)
+# Copy the application code
 COPY . .
 
 # Create cache directory for models
