@@ -10,6 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Disable NNPACK to avoid warnings on Cloud Run (unsupported hardware)
 ENV USE_NNPACK=0
 ENV PYTORCH_DISABLE_NNPACK=1
+# Force CPU device on Cloud Run (no GPU available)
+ENV FORCE_CPU=1
+# Set model cache directory to a writable location
+ENV XDG_CACHE_HOME=/app/.cache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -25,6 +29,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code (including SoraWatermarkCleaner directory)
 COPY . .
+
+# Create cache directory for models
+RUN mkdir -p /app/.cache && chmod 777 /app/.cache
+
+# Create temp directory for video processing
+RUN mkdir -p /app/temp && chmod 777 /app/temp
 
 # Expose the port the app runs on
 EXPOSE 8080

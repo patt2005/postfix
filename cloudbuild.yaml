@@ -27,6 +27,8 @@ steps:
       - '4Gi'
       - '--cpu'
       - '4'
+      - '--timeout'
+      - '3600'
       - '--max-instances'
       - '100'
       - '--set-env-vars'

@@ -26,6 +26,15 @@ def md5sum(filename):
 
 
 def switch_mps_device(model_name, device):
+    # Force CPU if FORCE_CPU is set or running on Cloud Run
+    force_cpu = os.getenv('FORCE_CPU', '').lower() in ('1', 'true', 'yes')
+    is_cloud_run = os.getenv('K_SERVICE') is not None or os.getenv('GAE_ENV') is not None
+    
+    if force_cpu or is_cloud_run:
+        if str(device) != "cpu":
+            logger.info(f"Forcing CPU device (FORCE_CPU={force_cpu}, Cloud Run={is_cloud_run})")
+            return torch.device("cpu")
+    
     if model_name in MPS_UNSUPPORT_MODELS and str(device) == "mps":
         logger.info(f"{model_name} not support mps, switch to cpu")
         return torch.device("cpu")

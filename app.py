@@ -3,6 +3,15 @@ import os
 os.environ.setdefault('USE_NNPACK', '0')
 os.environ.setdefault('PYTORCH_DISABLE_NNPACK', '1')
 
+# Force CPU on Cloud Run (no GPU available)
+is_cloud_run = os.getenv('K_SERVICE') is not None or os.getenv('GAE_ENV') is not None
+if is_cloud_run:
+    os.environ.setdefault('FORCE_CPU', '1')
+    # Set model cache to writable location
+    cache_dir = os.path.join(os.getcwd(), '.cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
+
 # Suppress NNPACK warnings
 import warnings
 warnings.filterwarnings('ignore', message='.*NNPACK.*')
@@ -1282,23 +1291,18 @@ def remove_sora_watermark():
     Remove Sora 2 watermark from a video file using SoraWatermarkCleaner.
     Uses LAMA cleaner type for fast and good quality processing.
     """
+    input_path = None
+    output_path = None
+    
     try:
-        # Disable NNPACK warnings before importing PyTorch
-        import os
-        os.environ['USE_NNPACK'] = '0'
-        os.environ['PYTORCH_DISABLE_NNPACK'] = '1'
-        
-        # Suppress NNPACK warnings
-        import warnings
-        warnings.filterwarnings('ignore', message='.*NNPACK.*')
-        warnings.filterwarnings('ignore', category=UserWarning, module='torch')
-        
         # Import SoraWatermarkCleaner
         # Add project root to Python path so SoraWatermarkCleaner can be imported
         import sys
         project_root = os.getcwd()
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
+        
+        logger.info("Starting Sora watermark removal process")
         
         from pathlib import Path
         from SoraWatermarkCleaner.sorawm.core import SoraWM
@@ -1322,37 +1326,85 @@ def remove_sora_watermark():
         input_path = os.path.join(temp_dir, f"{timestamp}_{input_filename}")
         
         # Save the uploaded file
+        logger.info(f"Saving uploaded video to: {input_path}")
         video_file.save(input_path)
-
-        logger.info(f"Removing Sora watermark from video: {input_path}")
+        
+        # Verify file was saved
+        if not os.path.exists(input_path):
+            return jsonify({'error': 'Failed to save uploaded video file'}), 500
+        
+        file_size = os.path.getsize(input_path)
+        logger.info(f"Video file saved successfully. Size: {file_size} bytes")
 
         # Prepare output path
         output_filename = input_filename.rsplit('.', 1)[0] + '_sora_removed.' + input_filename.rsplit('.', 1)[1]
         output_path = os.path.join(temp_dir, f"{timestamp}_{output_filename}")
 
+        logger.info(f"Initializing SoraWM with LAMA cleaner type")
+        logger.info(f"Device will be determined automatically (CPU forced on Cloud Run)")
+        
         # Initialize SoraWM with LAMA cleaner type
-        sora_wm = SoraWM(cleaner_type=CleanerType.LAMA)
+        # This may download models on first use
+        try:
+            sora_wm = SoraWM(cleaner_type=CleanerType.LAMA)
+            logger.info("SoraWM initialized successfully")
+        except Exception as init_error:
+            logger.error(f"Failed to initialize SoraWM: {str(init_error)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({
+                'error': 'Failed to initialize watermark remover',
+                'message': str(init_error),
+                'details': 'This may be due to missing model files or insufficient memory'
+            }), 500
+        
+        logger.info(f"Processing video: {input_path} -> {output_path}")
         
         # Process the video
-        sora_wm.run(Path(input_path), Path(output_path), quiet=True)
+        try:
+            sora_wm.run(Path(input_path), Path(output_path), quiet=True)
+            logger.info("Video processing completed")
+        except Exception as process_error:
+            logger.error(f"Error during video processing: {str(process_error)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({
+                'error': 'Failed to process video',
+                'message': str(process_error),
+                'details': 'Video processing failed. This may be due to timeout, memory issues, or invalid video format.'
+            }), 500
 
         if not os.path.exists(output_path):
-            # Clean up temp file
-            if os.path.exists(input_path):
-                os.remove(input_path)
-            return jsonify({'error': 'Failed to remove Sora watermark'}), 500
+            logger.error(f"Output file was not created: {output_path}")
+            return jsonify({
+                'error': 'Failed to remove Sora watermark',
+                'details': 'Processing completed but output file was not created'
+            }), 500
 
-        logger.info(f"Sora watermark removed successfully: {output_path}")
+        output_size = os.path.getsize(output_path)
+        logger.info(f"Sora watermark removed successfully. Output size: {output_size} bytes")
 
         # Read the processed video file
-        with open(output_path, 'rb') as f:
-            processed_video = f.read()
+        try:
+            with open(output_path, 'rb') as f:
+                processed_video = f.read()
+            logger.info(f"Read processed video: {len(processed_video)} bytes")
+        except Exception as read_error:
+            logger.error(f"Failed to read output file: {str(read_error)}")
+            return jsonify({
+                'error': 'Failed to read processed video',
+                'message': str(read_error)
+            }), 500
 
         # Clean up temporary files
-        if os.path.exists(input_path):
-            os.remove(input_path)
-        if os.path.exists(output_path):
-            os.remove(output_path)
+        try:
+            if os.path.exists(input_path):
+                os.remove(input_path)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            logger.info("Temporary files cleaned up")
+        except Exception as cleanup_error:
+            logger.warning(f"Failed to clean up temporary files: {str(cleanup_error)}")
 
         # Return the processed video as a binary response
         from flask import Response
@@ -1368,7 +1420,21 @@ def remove_sora_watermark():
         logger.error(f"Error removing Sora watermark: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        return jsonify({'error': 'Failed to remove Sora watermark', 'message': str(e)}), 500
+        
+        # Clean up temporary files on error
+        try:
+            if input_path and os.path.exists(input_path):
+                os.remove(input_path)
+            if output_path and os.path.exists(output_path):
+                os.remove(output_path)
+        except:
+            pass
+        
+        return jsonify({
+            'error': 'Failed to remove Sora watermark',
+            'message': str(e),
+            'details': 'Check logs for more information. Common issues: timeout, memory limits, or model download failures.'
+        }), 500
 
 
 @app.route('/api/post/video', methods=['POST'])
