@@ -25,3 +25,6 @@ ultralytics>=8.3.204
 torch>=2.5.0
 torchvision>=0.20.0
 ffmpeg-python>=0.2.0
+pandas>=2.3.3
+ruptures>=1.1.10
+scikit-learn>=1.7.2
