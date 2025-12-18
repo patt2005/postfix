@@ -7,6 +7,9 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+# Disable NNPACK to avoid warnings on Cloud Run (unsupported hardware)
+ENV USE_NNPACK=0
+ENV PYTORCH_DISABLE_NNPACK=1
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

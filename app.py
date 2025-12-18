@@ -1,4 +1,13 @@
+# Disable NNPACK before any imports to prevent warnings on Cloud Run
 import os
+os.environ.setdefault('USE_NNPACK', '0')
+os.environ.setdefault('PYTORCH_DISABLE_NNPACK', '1')
+
+# Suppress NNPACK warnings
+import warnings
+warnings.filterwarnings('ignore', message='.*NNPACK.*')
+warnings.filterwarnings('ignore', category=UserWarning, module='torch')
+
 import secrets
 import requests
 from flask import Flask, render_template, redirect, request, session, jsonify, url_for, send_from_directory, flash
@@ -1274,6 +1283,16 @@ def remove_sora_watermark():
     Uses LAMA cleaner type for fast and good quality processing.
     """
     try:
+        # Disable NNPACK warnings before importing PyTorch
+        import os
+        os.environ['USE_NNPACK'] = '0'
+        os.environ['PYTORCH_DISABLE_NNPACK'] = '1'
+        
+        # Suppress NNPACK warnings
+        import warnings
+        warnings.filterwarnings('ignore', message='.*NNPACK.*')
+        warnings.filterwarnings('ignore', category=UserWarning, module='torch')
+        
         # Import SoraWatermarkCleaner
         # Add project root to Python path so SoraWatermarkCleaner can be imported
         import sys
