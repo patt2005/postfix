@@ -1246,7 +1246,7 @@ def apply_watermark():
             output_path=None,
             logo_path="images/logo.png",
             fade_duration=1.0,
-            logo_scale=0.4,
+            logo_scale=0.35,
             position="bottom_center",
             margin=280
         )
