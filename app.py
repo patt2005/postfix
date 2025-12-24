@@ -1248,7 +1248,7 @@ def apply_watermark():
             fade_duration=1.0,
             logo_scale=0.35,
             position="bottom_center",
-            margin=280
+            margin=260
         )
 
         if not output_path or not os.path.exists(output_path):
