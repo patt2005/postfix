@@ -958,6 +958,94 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def upload_file_to_external_api(file, filename, max_retries=3, timeout=300):
+    """
+    Upload a file to the external API with retry logic and timeout handling.
+    
+    Args:
+        file: File object to upload (Flask FileStorage)
+        filename: Name of the file
+        max_retries: Maximum number of retry attempts (default: 3)
+        timeout: Request timeout in seconds (default: 300 for large video files)
+    
+    Returns:
+        tuple: (success: bool, response_data: dict or None, error: str or None)
+    """
+    external_api_url = 'https://ai-assistant-backend-1071001928522.europe-west1.run.app/api/file/upload-file'
+    
+    # Read file content once to avoid stream consumption issues during retries
+    file.seek(0)
+    file_content = file.read()
+    content_type = file.content_type
+    
+    for attempt in range(max_retries):
+        try:
+            # Create a new file-like object for each attempt
+            from io import BytesIO
+            file_obj = BytesIO(file_content)
+            files = {'file': (filename, file_obj, content_type)}
+            
+            logger.info(f"Uploading file to external API (attempt {attempt + 1}/{max_retries})...")
+            
+            # Make request with timeout
+            response = requests.post(
+                external_api_url,
+                files=files,
+                timeout=timeout
+            )
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                file_name = response_data.get('fileName')
+                file_url = f"https://ai-assistant-backend-1071001928522.europe-west1.run.app/api/file/get-file?fileName={file_name}"
+                
+                logger.info(f"Successfully uploaded file to external API: {file_url}")
+                return True, {'fileName': file_name, 'fileUrl': file_url}, None
+            
+            elif response.status_code == 503:
+                # Service unavailable - retry with exponential backoff
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) * 2  # 2s, 4s, 8s
+                    logger.warning(f"External API returned 503 (service unavailable). Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    error_msg = f"External API unavailable after {max_retries} attempts. The service may be cold-starting."
+                    logger.error(f"{error_msg} Response: {response.text[:500]}")
+                    return False, None, error_msg
+            
+            else:
+                # Other error - log and return
+                error_msg = f"External API error: HTTP {response.status_code}"
+                logger.error(f"{error_msg} Response: {response.text[:500]}")
+                return False, None, error_msg
+                
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                wait_time = (2 ** attempt) * 2
+                logger.warning(f"Request timeout. Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                error_msg = f"Request timeout after {max_retries} attempts. The file may be too large or the service is slow."
+                logger.error(error_msg)
+                return False, None, error_msg
+                
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                wait_time = (2 ** attempt) * 2
+                logger.warning(f"Request error: {str(e)}. Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                error_msg = f"Failed to upload file after {max_retries} attempts: {str(e)}"
+                logger.error(error_msg)
+                return False, None, error_msg
+    
+    # Should not reach here, but just in case
+    return False, None, "Upload failed after all retry attempts"
+
+
 def revoke_tiktok_token(access_token):
     """Revoke a TikTok access token
     
@@ -1168,34 +1256,24 @@ def upload_video_only():
                 timestamp = str(int(time.time()))
                 filename = f"{timestamp}_{filename}"
 
-                # Upload to external API
-                external_api_url = 'https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/upload-file'
-
-                # Prepare the file for upload
-                file.seek(0)  # Reset file pointer to beginning
-                files = {'file': (filename, file.stream, file.content_type)}
-
-                # Send request to external API
-                response = requests.post(external_api_url, files=files)
-
-                if response.status_code == 200:
-                    response_data = response.json()
-                    file_name = response_data.get('fileName')
-
-                    # Construct the URL to access the file
-                    file_url = f"https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/get-file?fileName={file_name}"
-
-                    logger.info(f"Video uploaded to external API: {file_url}")
-
+                # Upload file with retry logic
+                success, upload_data, error = upload_file_to_external_api(file, filename)
+                
+                if success:
+                    logger.info(f"Video uploaded to external API: {upload_data['fileUrl']}")
                     return jsonify({
                         'success': True,
-                        'fileName': file_name,
-                        'fileUrl': file_url,
+                        'fileName': upload_data['fileName'],
+                        'fileUrl': upload_data['fileUrl'],
                         'message': 'Video uploaded successfully'
                     }), 200
                 else:
-                    logger.error(f"External API error: {response.text}")
-                    return jsonify({'error': 'Failed to upload to external API', 'details': response.text}), 500
+                    logger.error(f"Failed to upload video: {error}")
+                    return jsonify({
+                        'error': 'Failed to upload to external API',
+                        'details': error,
+                        'suggestion': 'The external service may be starting up. Please try again in a few moments.'
+                    }), 503
             else:
                 return jsonify({'error': 'Invalid file type'}), 400
         else:
@@ -1300,23 +1378,19 @@ def post_video():
                 timestamp = str(int(time.time()))
                 filename = f"{timestamp}_{filename}"
 
-                external_api_url = 'https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/upload-file'
-
-                file.seek(0)  # Reset file pointer to beginning
-                files = {'file': (filename, file.stream, file.content_type)}
-
-                response = requests.post(external_api_url, files=files)
-
-                if response.status_code == 200:
-                    response_data = response.json()
-                    file_name = response_data.get('fileName')
-
-                    video_url = f"https://ai-assistant-backend-164860087792.europe-west1.run.app/api/file/get-file?fileName={file_name}"
-
+                # Upload file with retry logic
+                success, upload_data, error = upload_file_to_external_api(file, filename)
+                
+                if success:
+                    video_url = upload_data['fileUrl']
                     logger.info(f"Video uploaded to external API: {video_url}")
                 else:
-                    logger.error(f"External API error: {response.text}")
-                    return jsonify({'error': 'Failed to upload to external API', 'details': response.text}), 500
+                    logger.error(f"Failed to upload video: {error}")
+                    return jsonify({
+                        'error': 'Failed to upload to external API',
+                        'details': error,
+                        'suggestion': 'The external service may be starting up. Please try again in a few moments.'
+                    }), 503
             else:
                 return jsonify({'error': 'Invalid file type'}), 400
 
